@@ -366,7 +366,7 @@
         <details class="more"><summary>Advanced options</summary>
           <label class="opt"><input type="checkbox" id="optSound" checked><span>Play a soft chime when I move out of position</span></label>
           <label class="opt"><input type="checkbox" id="optTape"><span>Ask for the viewing distance measured with a tape measure <span class="hint">(needed for reliable results in degrees; off = camera estimate)</span></span></label>
-          <label class="opt"><input type="checkbox" id="optSmooth"><span>Smooth the gaze signal <span class="hint">(moving average; leave off to record WebGazer's raw output)</span></span></label>
+          <label class="opt"><input type="checkbox" id="optSmooth"><span>Smooth the gaze signal <span class="hint">(used for the quick check and the results shown; raw and smoothed gaze are both saved either way)</span></span></label>
         </details>
         <p class="hint" style="margin-top:16px">When you press the button, your browser asks to use the camera. Choose <b>Allow</b>.</p>
         <div class="row" style="margin-top:12px">
@@ -631,7 +631,7 @@ const CAM_FOV_DEG = 55;        // assumed horizontal field of view of the webcam
 const ASK_TAPE = true;          // ask participants to measure webcam-to-eye distance with a tape measure (needed for reliable degrees)
 const TAPE_SKIP_ALLOWED = true; // show "I don't have a tape measure"; skipped sessions are flagged in the results and CSV
 const VISION_REQUIRED = false;  // true = vision questions must be answered before continuing (default: all skippable)
-const SMOOTHING = true;         // moving-average gaze smoothing; off = WebGazer's raw output is recorded
+const SMOOTHING = true;         // which gaze drives the check and on-screen results: smoothed (true) or raw (false); both are always saved
 const SMOOTH_ALPHA = 0.35;      // strength when smoothing is on: 1 = none, lower = smoother
 const USE_KALMAN = false;      // WebGazer's own Kalman filter (see README before switching on)
 const REGRESSION = 'ridge';    // WebGazer regression: 'ridge' | 'weightedRidge'
@@ -696,7 +696,8 @@ async function enterFs(){
    ============================================================ */
 const gazeDot=$('#gazeDot');
 let latest=null, liveDot=false, collecting=false, curSamples=[], curNulls=[], aborted=false, runId=0;
-let sx=null, sy=null;                          // EMA-smoothed gaze
+let sx=null, sy=null;                          // gaze used for the check and on-screen results (raw or smoothed, per the setting)
+let ssx=null, ssy=null;                        // smoothed stream, always computed (SMOOTH_ALPHA), so both are recorded
 let emaAlpha=SMOOTHING?SMOOTH_ALPHA:1, kalmanOn=USE_KALMAN, soundOn=true, dispX=null, dispY=null;
 let sessionLog=[], recording=false, phase='setup', t0=0, pid='anon', unsaved=false;
 let pxPerCm=null, distCm=null, distSource='camera estimate', anchorEstCm=null;
@@ -710,17 +711,20 @@ let eyeHist=[];                                  // recent eye gaps (fraction of
 let tapeWanted=ASK_TAPE, tapeState='pending', tape=null, distK=null, tapeOpen=false, anchorLensCm=null, impliedFov=null;
 let vision={usual:'',clearWithout:'',now:'',clearNow:''}, device={type:'',model:'',camType:'',webcam:''}, sysInfo={os:'',browser:'',arch:'',gpu:''}, camCount=null;
 
-function logEvent(ev,x,y){ if(!recording)return;
-  sessionLog.push({t:Math.round(now()-t0),phase,ev,x:Math.round(x||0),y:Math.round(y||0),w:innerWidth,h:innerHeight,d:liveDistCm!=null?Math.round(liveDistCm):''}); }
+function logEvent(ev,x,y,g){ if(!recording)return;
+  sessionLog.push({t:Math.round(now()-t0),phase,ev,x:Math.round(x||0),y:Math.round(y||0),w:innerWidth,h:innerHeight,d:liveDistCm!=null?Math.round(liveDistCm):'',
+    g:g?`${g.rx.toFixed(1)},${g.ry.toFixed(1)},${g.smx.toFixed(1)},${g.smy.toFixed(1)}`:',,,'}); }
 function onGaze(d){
   if(!d){ if(collecting) curNulls.push(now()); return; }       // WebGazer sends null when it has no eyes this frame
-  sx=(sx==null)?d.x:emaAlpha*d.x+(1-emaAlpha)*sx;
-  sy=(sy==null)?d.y:emaAlpha*d.y+(1-emaAlpha)*sy;
+  ssx=(ssx==null)?d.x:SMOOTH_ALPHA*d.x+(1-SMOOTH_ALPHA)*ssx;
+  ssy=(ssy==null)?d.y:SMOOTH_ALPHA*d.y+(1-SMOOTH_ALPHA)*ssy;
+  const useSmooth=emaAlpha<1; sx=useSmooth?ssx:d.x; sy=useSmooth?ssy:d.y;
+  const both={rx:d.x,ry:d.y,smx:ssx,smy:ssy};
   latest={x:sx,y:sy};
   dispX=(dispX==null)?sx:0.35*sx+0.65*dispX; dispY=(dispY==null)?sy:0.35*sy+0.65*dispY;   // on-screen dot only, never recorded
   if(liveDot){gazeDot.style.left=dispX+'px';gazeDot.style.top=dispY+'px';}
-  logEvent('gaze',sx,sy); if(collecting)curSamples.push({t:now(),gx:sx,gy:sy});
-  if(searchActive&&curTrial)curTrial.gaze.push({t:now(),x:sx,y:sy});
+  logEvent('gaze',sx,sy,both); if(collecting)curSamples.push({t:now(),gx:sx,gy:sy,...both});
+  if(searchActive&&curTrial)curTrial.gaze.push({t:now(),x:sx,y:sy,...both});
 }
 function pxToDeg(distPx){ if(!pxPerCm||!distCm)return null; const cm=distPx/pxPerCm; return 2*Math.atan((cm/2)/distCm)*180/Math.PI; }
 function setLiveDot(on){ liveDot=!!on; gazeDot.style.display=liveDot?'block':'none';
@@ -1251,7 +1255,7 @@ async function runValidation(kind){
   const points=[]; if(kind==='check') CHECK_POINTS.forEach(p=>points.push(p.slice())); else V_ROWS.forEach(fy=>V_COLS.forEach(fx=>points.push([fx,fy])));
   for(let i=points.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[points[i],points[j]]=[points[j],points[i]];}
   hud('val','Get ready',0); await countdown(st,my,'Look at the cross'); if(stop()) return;
-  const results=[], intervals=[]; let nGot=0,nNull=0; const pc0=pauseCount;
+  const results=[], resultsRaw=[], resultsSm=[], intervals=[]; let nGot=0,nNull=0; const pc0=pauseCount;
   for(let i=0;i<points.length;i++){
     const [x,y]=px(points[i][0],points[i][1]); let r=null, tries=0;
     do{
@@ -1267,13 +1271,18 @@ async function runValidation(kind){
     for(let k=1;k<kept.length;k++) intervals.push(kept[k].t-kept[k-1].t);
     nGot+=kept.length; nNull+=r.nulls.filter(t=>t-r.tOn>=PRUNE).length;
     results.push(pointStats(i+1,x,y,kept));
+    resultsRaw.push(pointStats(i+1,x,y,kept.map(p=>({t:p.t,gx:p.rx,gy:p.ry}))));
+    resultsSm.push(pointStats(i+1,x,y,kept.map(p=>({t:p.t,gx:p.smx,gy:p.smy}))));
     st.querySelectorAll('.vtarget').forEach(e=>e.remove()); await sleep(ITI);
   }
   if(stop()) return;
   hud('val','Done',1); logEvent(kind==='check'?'check_done':'val_done',0,0);
   if(kind==='check'){ checkOutcome(results,{nGot,nNull}); return; }
-  computeResults(results,{intervals,nGot,nNull,pauses:pauseCount-pc0});
+  computeResults(results,{intervals,nGot,nNull,pauses:pauseCount-pc0,resultsRaw,resultsSm});
 }
+function streamSummary(rs){ const ok=rs.filter(r=>r.accPx!=null), m=k=>ok.length?mean(ok.map(r=>r[k])):null, D=v=>v!=null?pxToDeg(v):null;
+  const o={accPx:m('accPx'),precPx:m('precPx'),accX:m('accX'),accY:m('accY'),precX:m('precX'),precY:m('precY')};
+  Object.keys(o).forEach(k=>{ o[k+'Deg']=D(o[k]); }); return o; }
 function pointStats(i,x,y,s){
   if(!s.length) return {i,x,y,n:0,accPx:null,precPx:null,mgx:null,mgy:null,accX:null,accY:null,precX:null,precY:null};
   const gx=s.map(p=>p.gx),gy=s.map(p=>p.gy),mgx=mean(gx),mgy=mean(gy);
@@ -1324,7 +1333,8 @@ function computeResults(results,st){
   if(st.intervals.length>2){ im=mean(st.intervals); isd=Math.sqrt(mean(st.intervals.map(v=>(v-im)**2))); hz=1000/im; }
   const validity=(st.nGot+st.nNull)>0?100*st.nGot/(st.nGot+st.nNull):null;
   const track=camStream&&camStream.getVideoTracks()[0], set=track&&track.getSettings?track.getSettings():{};
-  lastSummary={pid,accPx,precPx,accDeg,precDeg,ax,hz,im,isd,validity,results,pxPerCm,distCm,distSource,anchorEstCm,
+  const streams={raw:streamSummary(st.resultsRaw||[]),smoothed:streamSummary(st.resultsSm||[])};
+  lastSummary={pid,accPx,precPx,accDeg,precDeg,ax,streams,resultsRaw:st.resultsRaw||[],resultsSm:st.resultsSm||[],hz,im,isd,validity,results,pxPerCm,distCm,distSource,anchorEstCm,
     screenW:innerWidth,screenH:innerHeight,pauses:st.pauses,calRuns,viewportChanged,fullscreen:!!document.fullscreenElement,
     camLabel:track?track.label:'',camRes:set.width?`${set.width}x${set.height}`:'',camFps:set.frameRate?Math.round(set.frameRate):'',nGot:st.nGot};
   const f=(v,d=0)=>v==null?'\u2014':v.toFixed(d);
@@ -1358,7 +1368,8 @@ function computeResults(results,st){
   $('#resWarn').innerHTML=warns.map(w=>`<li>${esc(w)}</li>`).join('');
   drawMap(results);
   const bits=[]; if(accPx!=null) bits.push(`Mean offset ${accPx.toFixed(0)} px${accDeg!=null?' ('+accDeg.toFixed(2)+'\u00b0)':''}${distCm!=null?` at ${Math.round(distCm)} cm (${distSource})`:''}.`);
-  bits.push('Webcam data quality varies from run to run, so validating twice is worthwhile.');
+  const sd=(o,k)=>o[k]==null?'\u2014':`${o[k].toFixed(0)} px${o[k+'Deg']!=null?' ('+o[k+'Deg'].toFixed(2)+'\u00b0)':''}`;
+  bits.push(`Without smoothing: accuracy ${sd(streams.raw,'accPx')}, precision ${sd(streams.raw,'precPx')}. With smoothing: accuracy ${sd(streams.smoothed,'accPx')}, precision ${sd(streams.smoothed,'precPx')}. Both are saved.`);
   $('#resNote').textContent=bits.join(' ');
   show('res'); placeCam(null);
 }
@@ -1398,14 +1409,14 @@ const downloaded=[];
 function download(name,text){ if(!downloaded.includes(name)) downloaded.push(name); renderSend();
   const b=new Blob([text],{type:'text/csv'}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);}
 function stamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());}
-function saveRaw(){ if(!sessionLog.length)return false; const rows=['participant,t_ms,phase,event,x,y,screen_w,screen_h,px_per_cm,dist_cm']
-  .concat(sessionLog.map(r=>`${pid},${r.t},${r.phase},${r.ev},${r.x},${r.y},${r.w},${r.h},${pxPerCm||''},${r.d}`));
+function saveRaw(){ if(!sessionLog.length)return false; const rows=['participant,t_ms,phase,event,x,y,screen_w,screen_h,px_per_cm,dist_cm,raw_x,raw_y,smoothed_x,smoothed_y']
+  .concat(sessionLog.map(r=>`${pid},${r.t},${r.phase},${r.ev},${r.x},${r.y},${r.w},${r.h},${pxPerCm||''},${r.d},${r.g||',,,'}`));
   download(`gaze_raw_${pid}_${stamp()}.csv`,rows.join('\n')); return true; }
 function saveValidation(){ const s=lastSummary; if(!s)return false; const q=v=>`"${String(v).replace(/"/g,'""')}"`;
   const pxdeg=v=>v==null?',':`${v.toFixed(1)},${pxToDeg(v)==null?'':pxToDeg(v).toFixed(3)}`;
-  const rows=['point,target_x,target_y,mean_gaze_x,mean_gaze_y,accuracy_px,accuracy_deg,precision_px,precision_deg,valid_n,accuracy_x_px,accuracy_x_deg,accuracy_y_px,accuracy_y_deg,precision_x_px,precision_x_deg,precision_y_px,precision_y_deg'];
-  s.results.forEach(r=>{const ad=r.accPx!=null?pxToDeg(r.accPx):null,pd=r.precPx!=null?pxToDeg(r.precPx):null;
-    rows.push(`${r.i},${r.x},${r.y},${r.mgx==null?'':r.mgx.toFixed(1)},${r.mgy==null?'':r.mgy.toFixed(1)},${r.accPx==null?'':r.accPx.toFixed(1)},${ad==null?'':ad.toFixed(3)},${r.precPx==null?'':r.precPx.toFixed(1)},${pd==null?'':pd.toFixed(3)},${r.n},${pxdeg(r.accX)},${pxdeg(r.accY)},${pxdeg(r.precX)},${pxdeg(r.precY)}`);});
+  const rows=['point,target_x,target_y,mean_gaze_x,mean_gaze_y,accuracy_px,accuracy_deg,precision_px,precision_deg,valid_n,accuracy_x_px,accuracy_x_deg,accuracy_y_px,accuracy_y_deg,precision_x_px,precision_x_deg,precision_y_px,precision_y_deg,accuracy_raw_px,accuracy_raw_deg,precision_raw_px,precision_raw_deg,accuracy_smoothed_px,accuracy_smoothed_deg,precision_smoothed_px,precision_smoothed_deg'];
+  s.results.forEach((r,k)=>{const ad=r.accPx!=null?pxToDeg(r.accPx):null,pd=r.precPx!=null?pxToDeg(r.precPx):null;
+    rows.push(`${r.i},${r.x},${r.y},${r.mgx==null?'':r.mgx.toFixed(1)},${r.mgy==null?'':r.mgy.toFixed(1)},${r.accPx==null?'':r.accPx.toFixed(1)},${ad==null?'':ad.toFixed(3)},${r.precPx==null?'':r.precPx.toFixed(1)},${pd==null?'':pd.toFixed(3)},${r.n},${pxdeg(r.accX)},${pxdeg(r.accY)},${pxdeg(r.precX)},${pxdeg(r.precY)},${pxdeg((s.resultsRaw[k]||{}).accPx)},${pxdeg((s.resultsRaw[k]||{}).precPx)},${pxdeg((s.resultsSm[k]||{}).accPx)},${pxdeg((s.resultsSm[k]||{}).precPx)}`);});
   const kv=(k,v)=>rows.push(`${k},${v==null?'':v}`);
   rows.push('');
   kv('participant',s.pid);
@@ -1414,6 +1425,11 @@ function saveValidation(){ const s=lastSummary; if(!s)return false; const q=v=>`
   const A=s.ax||{}, kv2=(k,v,vd)=>{ kv(k+'_px',v==null?'':v.toFixed(1)); kv(k+'_deg',vd==null?'':vd.toFixed(3)); };
   kv2('overall_accuracy_x',A.accX,A.accXDeg); kv2('overall_accuracy_y',A.accY,A.accYDeg); kv2('overall_accuracy_xy_mean',A.accXY,A.accXYDeg);
   kv2('overall_precision_x',A.precX,A.precXDeg); kv2('overall_precision_y',A.precY,A.precYDeg); kv2('overall_precision_xy_mean',A.precXY,A.precXYDeg);
+  kv('main_results_use',emaAlpha<1?'smoothed gaze':'raw gaze'); kv('smoothed_stream_alpha',SMOOTH_ALPHA);
+  ['raw','smoothed'].forEach(n=>{ const o=(s.streams||{})[n]||{};
+    kv2(`overall_${n}_accuracy`,o.accPx,o.accPxDeg); kv2(`overall_${n}_precision`,o.precPx,o.precPxDeg);
+    kv2(`overall_${n}_accuracy_x`,o.accX,o.accXDeg); kv2(`overall_${n}_accuracy_y`,o.accY,o.accYDeg);
+    kv2(`overall_${n}_precision_x`,o.precX,o.precXDeg); kv2(`overall_${n}_precision_y`,o.precY,o.precYDeg); });
   kv('sampling_rate_hz',s.hz==null?'':s.hz.toFixed(2)); kv('inter_sample_mean_ms',s.im==null?'':s.im.toFixed(2)); kv('inter_sample_sd_ms',s.isd==null?'':s.isd.toFixed(2));
   kv('valid_percent',s.validity==null?'':s.validity.toFixed(1));
   kv('viewing_distance_cm',s.distCm==null?'':Math.round(s.distCm)); kv('distance_source',s.distSource); kv('camera_distance_estimate_cm',anchorLensCm);
@@ -1545,10 +1561,14 @@ async function runSearch(){
   if(!aborted&&my===runId) scoreSearch();
 }
 function scoreSearch(){
+  const main=scoreStream(g=>g), raw=scoreStream(g=>({t:g.t,x:g.rx,y:g.ry})), smoothed=scoreStream(g=>({t:g.t,x:g.smx,y:g.smy}));
+  lastSearch={rows:main.rows,rocByDur:main.rocByDur,byStream:{raw,smoothed}}; unsaved=true; phase='search_results'; renderSearchResults();
+}
+function scoreStream(pick){
   const rows=[], rocByDur={};
   DURS.forEach(D=>{ const pts=[];
     AOIS.forEach(A=>{ let TP=0,FP=0,FN=0,TN=0;
-      searchTrials.forEach(tr=>{ const fixes=detectFixations(tr.gaze,D);
+      searchTrials.forEach(tr=>{ const fixes=detectFixations(tr.gaze.map(pick),D);
         const inA=fx=>tr.targets.some(t=>Math.abs(fx.x-t.x)<=A.w/2&&Math.abs(fx.y-t.y)<=A.h/2);
         fixes.forEach(fx=>{ const ia=inA(fx), ca=tr.clicks.some(c=>c.t-fx.t1>=0&&c.t-fx.t1<=500);
           if(ia&&ca)TP++; else if(ia&&!ca)FP++; else if(!ia&&!ca)TN++; });
@@ -1561,7 +1581,7 @@ function scoreSearch(){
     let auc=0; for(let k=1;k<pts.length;k++) auc+=(pts[k].fpr-pts[k-1].fpr)*(pts[k].tpr+pts[k-1].tpr)/2;
     rocByDur[D]={pts,auc};
   });
-  lastSearch={rows,rocByDur}; unsaved=true; phase='search_results'; renderSearchResults();
+  return {rows,rocByDur};
 }
 function renderSearchResults(){
   const nc=searchTrials.reduce((s,t)=>s+t.clicks.length,0), ng=searchTrials.reduce((s,t)=>s+t.gaze.length,0);
@@ -1590,7 +1610,13 @@ function drawROC(){
 function saveSearch(){ if(!lastSearch)return false; const rows=['min_fix_ms,aoi_w,aoi_h,TP,FP,FN,TN,sensitivity,specificity'];
   lastSearch.rows.forEach(r=>rows.push(`${r.D},${r.A.w},${r.A.h},${r.TP},${r.FP},${r.FN},${r.TN},${r.sens.toFixed(4)},${r.spec.toFixed(4)}`));
   rows.push(''); DURS.forEach(D=>rows.push(`auc_${D}ms,${lastSearch.rocByDur[D].auc.toFixed(4)}`));
+  rows.push(`main_results_use,${emaAlpha<1?'smoothed gaze':'raw gaze'}`);
+  ['raw','smoothed'].forEach(n=>{ const b=lastSearch.byStream&&lastSearch.byStream[n]; if(!b) return;
+    DURS.forEach(D=>rows.push(`auc_${n}_${D}ms,${b.rocByDur[D].auc.toFixed(4)}`)); });
   rows.push(`trials,${searchTrials.length}`); rows.push(`participant,${pid}`);
+  ['raw','smoothed'].forEach(n=>{ const b=lastSearch.byStream&&lastSearch.byStream[n]; if(!b) return;
+    rows.push(''); rows.push(`${n}_gaze: min_fix_ms,aoi_w,aoi_h,TP,FP,FN,TN,sensitivity,specificity`);
+    b.rows.forEach(r=>rows.push(`${r.D},${r.A.w},${r.A.h},${r.TP},${r.FP},${r.FN},${r.TN},${r.sens.toFixed(4)},${r.spec.toFixed(4)}`)); });
   download(`gaze_search_roc_${pid}_${stamp()}.csv`,rows.join('\n')); return true; }
 
 function showSearchIntro(){ phase='instructions';
