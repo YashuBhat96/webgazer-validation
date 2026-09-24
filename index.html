@@ -357,7 +357,7 @@
           <li><b>Raise your webcam to eye level</b>, pointing straight at your face. Prop your laptop on some books if you need to.</li>
           <li><b>Light on your face, not behind you.</b> Face a window or lamp; avoid a bright window behind you.</li>
           <li><b>Glasses off if you can see the screen clearly without them</b>; reflections on the lenses confuse the tracker. If you can’t, keep them on. <b>Contact lenses are fine</b>, so keep them in.</li>
-          <li><b>Stay in one position once you start.</b> Keep your head still and at the same distance until everything is finished.</li>
+          <li><b>Sit 50–70 cm from the screen</b>, about an arm’s length, and stay in that position until everything is finished. Keep your head still.</li>
           <li><b>Close other heavy apps and tabs.</b> The tracker needs the processing power.</li>
         </ol>
         <label class="opt"><input type="checkbox" id="optFs" checked><span>Use full screen for the tasks <span class="hint">(recommended, so the dots can reach the edges of the screen)</span></span></label>
@@ -404,7 +404,7 @@
         </div>
         <div id="viewTape" hidden>
           <ol class="numlist">
-            <li>Sit the way you’ll sit for the rest of the session.</li>
+            <li>Sit <b>50–70 cm from the screen</b> (about an arm’s length), the way you’ll sit for the rest of the session.</li>
             <li>Hold the end of a tape measure or ruler at the <b>webcam</b> and measure straight to the <b>corner of your eye</b>. It’s easier if someone holds the other end.</li>
             <li>Type in the number, then <b>stay in that position until the end</b>.</li>
           </ol>
@@ -434,7 +434,7 @@
         <div class="row tight"><button class="btn ghost small" id="reloadBtn">Reload the page</button></div>
       </div>
       <div class="staybox" id="stayBox" hidden><b>Now stay where you are until the end.</b>
-        Keep your head still and stay at this distance through the calibration and the checks that follow. If you move, the task pauses until you’re back in place.</div>
+        Keep your head still and stay at this distance (50–70 cm) through the calibration and the checks that follow. If you move, the task pauses until you’re back in place.</div>
       <div class="row"><button class="btn" id="distContinue" disabled>Continue to calibration</button></div>
     </div></div>
   </section>
@@ -473,6 +473,7 @@
         <button class="btn" id="toSearch">Next: search task</button>
         <button class="btn ghost" id="toExp">Skip to experiments</button>
       </div>
+      <p class="hint" id="lockNote" hidden>The search task and experiments unlock once the accuracy check passes. A check passes when accuracy and precision are within 5° and at least 80% of moments have a gaze estimate.</p>
       <div class="row tight">
         <button class="btn ghost small" id="recal">Recalibrate</button>
         <button class="btn ghost small" id="reval">Validate again</button>
@@ -631,7 +632,10 @@ const SMOOTH_ALPHA = 0.35;      // strength when smoothing is on: 1 = none, lowe
 const USE_KALMAN = false;      // WebGazer's own Kalman filter (see README before switching on)
 const REGRESSION = 'ridge';    // WebGazer regression: 'ridge' | 'weightedRidge'
 const DIST_TOL = 8;            // cm of drift from the starting distance before a task pauses
-const GRADE = { accDeg:[1,2], precDeg:[1,2], accPx:[80,150], precPx:[35,70] };  // [good, fair] upper limits
+const GRADE = { accDeg:[3,5], precDeg:[3,5], accPx:[110,185], precPx:[110,185] };  // [good, fair] upper limits; above fair = poor
+const DIST_MIN = 50, DIST_MAX = 70;   // cm, webcam to eye: participants must sit in this range (checked on the tape measurement)
+const PASS_MIN_VALID = 80;            // % of frames with a gaze estimate needed to pass the check
+const MAX_ATTEMPTS = 3;               // after this many failed checks, participants are asked to save data and contact the researcher
 const CAM_W = 400;             // camera preview width (px)
 
 /* ============================================================
@@ -690,7 +694,7 @@ let sx=null, sy=null;                          // EMA-smoothed gaze
 let emaAlpha=SMOOTHING?SMOOTH_ALPHA:1, kalmanOn=USE_KALMAN, soundOn=true, dispX=null, dispY=null;
 let sessionLog=[], recording=false, phase='setup', t0=0, pid='anon', unsaved=false;
 let pxPerCm=null, distCm=null, distSource='camera estimate', anchorEstCm=null;
-let paused=false, pauseCount=0, calibrated=false, calRuns=0, calViewport=null, viewportChanged=false;
+let paused=false, pauseCount=0, calibrated=false, calRuns=0, checkRuns=0, failedChecks=0, passed=false, calViewport=null, viewportChanged=false;
 let lastSummary=null;
 let searchTrials=[], curTrial=null, searchActive=false, lastSearch=null;
 let trackerOn=false, trackerHooked=false, modelReady=false, modelError=null;
@@ -1014,9 +1018,9 @@ function runDistance(){
     }
     if(tapeState==='done') setCheck('ckDist','ok',`${fmtTape()} from the webcam`,'Your measurement. Stay in this position from now on.');
     else if(d==null) setCheck('ckDist','','Distance from the screen','Measuring\u2026');
-    else if(d<40) setCheck('ckDist','warn',`About ${d} cm: quite close`,'Lean back a little; around 50\u201370 cm works best.');
-    else if(d>85) setCheck('ckDist','warn',`About ${d} cm: quite far`,'Come a little closer; around 50\u201370 cm works best.');
-    else setCheck('ckDist','ok',`About ${d} cm from the screen`,'A camera estimate. Stay at about this distance from now on.');
+    else if(d<DIST_MIN) setCheck('ckDist','warn',`About ${d} cm: too close`,`Sit ${DIST_MIN}\u2013${DIST_MAX} cm from the screen. Lean back a little.`);
+    else if(d>DIST_MAX) setCheck('ckDist','warn',`About ${d} cm: too far`,`Sit ${DIST_MIN}\u2013${DIST_MAX} cm from the screen. Come a little closer.`);
+    else setCheck('ckDist','ok',`About ${d} cm from the screen`,`A camera estimate. Stay ${DIST_MIN}\u2013${DIST_MAX} cm from the screen from now on.`);
     if(lensDistCm!=null){ distRecent.push(lensDistCm); if(distRecent.length>10) distRecent.shift(); }
     const stable=distRecent.length>=8 && (Math.max(...distRecent)-Math.min(...distRecent)<3);
     if(!stable){ readySince=null; setCheck('ckStill','','Holding still','Hold your head still for a moment\u2026'); cont.disabled=true; return; }
@@ -1069,6 +1073,7 @@ $('#tapeUse').onclick=()=>{
   const unit=radioVal('tapeUnit')||'cm', value=parseFloat(String($('#tapeVal').value).replace(',','.'));
   const cm=unit==='in'?value*2.54:value;
   if(!(cm>=25&&cm<=150)){ tapeError(unit==='in'?'<b>Enter a distance between 10 and 59 inches.</b>':'<b>Enter a distance between 25 and 150 cm.</b>'); return; }
+  if(cm<DIST_MIN||cm>DIST_MAX){ tapeError(`<b>You\u2019re about ${Math.round(cm)} cm from the webcam. Please sit ${DIST_MIN}\u2013${DIST_MAX} cm away</b> (${Math.round(DIST_MIN/2.54)}\u2013${Math.round(DIST_MAX/2.54)} inches, about an arm\u2019s length), then measure again.`); return; }
   const est=lensDistCm;                                   // catch unit mix-ups (inches typed as cm, etc.)
   if(!tapeWarned && est && (cm/est<0.55||cm/est>1.8)){ tapeWarned=true;
     tapeError(`<b>That\u2019s quite different from the camera\u2019s estimate (about ${Math.round(est)} cm).</b><p>Check the number and the unit. If it\u2019s right, press the button again.</p>`);
@@ -1125,7 +1130,7 @@ async function gate(){ if(!paused) return false; while(paused&&!aborted) await s
    3 · CALIBRATION (the dot moves by itself; nothing to click)
    ============================================================ */
 const CAL=[[.08,.08],[.5,.08],[.92,.08],[.08,.5],[.5,.5],[.92,.5],[.08,.92],[.5,.92],[.92,.92],[.3,.3],[.7,.3],[.3,.7],[.7,.7]];
-const CAL_MS=2000, CAL_SETTLE=300, CAL_SAMPLES=12, RESUME_SETTLE=700;
+const CAL_MS=2000, CAL_SETTLE=300, CAL_SAMPLES=40, RESUME_SETTLE=700;   // 40 snapshots per dot, 520 in all (WebGazer keeps up to 700)
 function hud(which,msg,frac){ $('#'+which+'Hud').textContent=msg; $('#'+which+'Bar').style.width=Math.round(frac*100)+'%'; }
 function clearStage(st){ st.querySelectorAll('.dot,.ring,.vtarget,.count').forEach(e=>e.remove()); }
 async function countdown(st,my,label){
@@ -1284,12 +1289,19 @@ function computeResults(results,st){
   const [ga,ca,sa]=accDeg!=null?grade(accDeg,GRADE.accDeg):grade(accPx,GRADE.accPx);
   const [gp,cp,sp]=precDeg!=null?grade(precDeg,GRADE.precDeg):grade(precPx,GRADE.precPx);
   const worst=ok.length?Math.max(sa,sp):2;
-  const V=[['good','\u2713','Tracking looks good','You can move on.'],
+  checkRuns++; passed=worst<2 && validity!=null && validity>=PASS_MIN_VALID && !viewportChanged;
+  if(!passed) failedChecks++;
+  const outOfTries=!passed && failedChecks>=MAX_ATTEMPTS;
+  let V=[['good','\u2713','Tracking looks good','You can move on.'],
            ['fair','!','Tracking is usable','Recalibrating may improve it: more light on your face, camera at eye level, head still.'],
-           ['poor','!','Tracking is weak','Recalibrate before moving on. The usual fixes: more light on your face, camera at eye level, head still, glasses off.']][worst];
+           ['poor','!','Tracking isn\u2019t good enough yet','Please recalibrate. Before you do: sit 50\u201370 cm from the screen, get more light on your face, raise the camera to eye level and keep your head still.']][worst];
+  if(!passed && worst<2) V=['poor','!','Tracking isn\u2019t good enough yet',viewportChanged?'The window changed size after calibration. Please recalibrate.':'Too many moments had no gaze estimate. Please recalibrate, keeping your face in view and well lit.'];
+  if(outOfTries) V=['poor','!',`Still not good enough after ${MAX_ATTEMPTS} tries`,'Please download your data below and let the researcher know. You can keep trying: recalibrate after improving the light, your distance (50\u201370 cm) or the camera position.'];
   $('#verdict').className='verdict '+V[0]; $('#verdictIc').textContent=V[1]; $('#verdictT').textContent=V[2]; $('#verdictP').textContent=V[3];
-  $('#recal').className='btn small'+(worst===2?'':' ghost');
-  $('#toSearch').className='btn'+(worst===2?' ghost':'');
+  // the search task and experiments unlock only after a passed check; a failed check means recalibrating
+  $('#toSearch').disabled=!passed; $('#toExp').disabled=!passed; $('#reval').hidden=!passed;
+  $('#recal').className='btn'+(passed?' ghost small':''); $('#recal').textContent=passed?'Recalibrate':'Recalibrate now';
+  $('#lockNote').hidden=passed;
   $('#metricGrid').innerHTML=`
     <div class="metric"><div class="k">Accuracy</div><div class="v mono">${f(accPx)}<span class="u">px</span></div><div class="sub">${accDeg!=null?accDeg.toFixed(2)+'\u00b0 visual angle'+(distSource!=='tape measure'?' (estimated)':''):'no distance, so px only'}</div><div class="sub">${xyLine(ax.accX,ax.accY,true)}</div><div class="sub ${ca}">${ga}</div></div>
     <div class="metric"><div class="k">Precision (RMS)</div><div class="v mono">${f(precPx)}<span class="u">px</span></div><div class="sub">${precDeg!=null?precDeg.toFixed(2)+'\u00b0':'\u2014'}</div><div class="sub">${xyLine(ax.precX,ax.precY,true)}</div><div class="sub ${cp}">${gp}</div></div>
@@ -1373,7 +1385,9 @@ function saveValidation(){ const s=lastSummary; if(!s)return false; const q=v=>`
   kv('camera_fov_deg_implied',impliedFov!=null?impliedFov.toFixed(1):'');
   kv('px_per_cm',s.pxPerCm||''); kv('screen_w',s.screenW); kv('screen_h',s.screenH); kv('fullscreen',s.fullscreen?'yes':'no');
   kv('viewport_changed_since_calibration',s.viewportChanged?'yes':'no'); kv('position_pauses',s.pauses); kv('calibration_runs',s.calRuns);
-  kv('smoothing',emaAlpha<1?'on':'off'); kv('ema_alpha',emaAlpha); kv('regression',REGRESSION); kv('kalman_filter',kalmanOn?'on':'off'); kv('calibration_points',CAL.length); kv('validation_target','cross with shrinking ring, 48 px, on the dark calibration background');
+  kv('smoothing',emaAlpha<1?'on':'off'); kv('ema_alpha',emaAlpha); kv('regression',REGRESSION); kv('kalman_filter',kalmanOn?'on':'off'); kv('calibration_points',CAL.length); kv('calibration_samples_per_point',CAL_SAMPLES); kv('validation_passed',passed?'yes':'no'); kv('validation_attempt',checkRuns); kv('failed_checks_so_far',failedChecks);
+  kv('pass_rule',`accuracy and precision <= ${GRADE.accDeg[1]} deg (or ${GRADE.accPx[1]} px without a distance), valid >= ${PASS_MIN_VALID}%, window unchanged`);
+  kv('distance_rule_cm',`${DIST_MIN}-${DIST_MAX}`); kv('validation_target','cross with shrinking ring, 48 px, on the dark calibration background');
   kv('validation_grid_x_fractions',V_COLS.join(';')); kv('validation_grid_y_fractions',V_ROWS.join(';')); kv('validation_target_ms',FIND_MS+DWELL); kv('validation_blank_ms',ITI); kv('validation_pruned_ms',PRUNE); kv('validation_extra_find_ms',FIND_MS);
   kv('ipd_mm_assumed',IPD_MM); kv('camera_fov_deg_assumed',CAM_FOV_DEG);
   const na=v=>v||'not answered';
@@ -1402,8 +1416,9 @@ addEventListener('beforeunload',e=>{ if(unsaved){ e.preventDefault(); e.returnVa
 $('#recal').onclick=showCalIntro;
 $('#reval').onclick=showValIntro;
 $('#gazeToggle').onclick=()=>setLiveDot(!liveDot);
-$('#toExp').onclick=()=>{ renderExperiments(); show('exp'); };
-$('#toExp2').onclick=()=>{ renderExperiments(); show('exp'); };
+const needPass=()=>{ if(passed) return false; toast('Recalibrate first: the accuracy check needs to pass.'); return true; };
+$('#toExp').onclick=()=>{ if(needPass()) return; renderExperiments(); show('exp'); };
+$('#toExp2').onclick=()=>{ if(needPass()) return; renderExperiments(); show('exp'); };
 $('#expBack').onclick=()=>show('res');
 $('#backRes').onclick=()=>show('res');
 $('#dlRaw').onclick=()=>{ saveRaw()||toast('There\u2019s no data to download yet.'); };
@@ -1528,7 +1543,7 @@ function showSearchIntro(){ phase='instructions';
   instruct('Optional task','Find the letters',
     '<p>You\u2019ll see a screen full of the letter \u201cE\u201d. Most face backwards, but <b>two face the normal way</b>. Find both and <b>click each one</b>. The next round starts as soon as you\u2019ve clicked both. There are '+SEARCH_TRIALS+' rounds, about 3 minutes in all.</p><p class="hint">Can\u2019t find them? Press Space to skip a round. Esc stops the task.</p>',
     [{label:'Start the search task',primary:true,fs:true,fn:runSearch},{label:'Not now',fn:()=>show('res')}]); }
-$('#toSearch').onclick=showSearchIntro;
+$('#toSearch').onclick=()=>{ if(needPass()) return; showSearchIntro(); };
 $('#reSearch').onclick=showSearchIntro;
 $('#dlSearch').onclick=()=>{ saveSearch()||toast('There\u2019s no search data yet.'); };
 })();
