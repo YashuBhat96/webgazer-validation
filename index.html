@@ -59,6 +59,8 @@
   .tapein{display:flex;gap:10px;align-items:center;flex-wrap:wrap} .tapein input{width:120px}
   .staybox{margin:22px 0 0;padding:14px 16px;border-radius:10px;background:var(--accent-weak);border-left:4px solid var(--accent);color:#244F3B;font-size:15px;max-width:70ch}
   .staybox b{display:block;color:var(--ink);font-size:16px;margin-bottom:2px}
+  .sendbox{margin:16px 0 0;padding:14px 16px;border-radius:10px;background:var(--accent-weak);border-left:4px solid var(--accent);color:#244F3B;font-size:15px;max-width:66ch}
+  .sendbox b{color:var(--ink)} .sendbox .files{font-size:13px;color:var(--mut);margin:8px 0 0;word-break:break-all} .sendbox .row{margin-top:10px}
   .findhelp p{font-size:14px;margin:8px 0 0}
   [hidden]{display:none!important}
   .okbox{border:1px solid #CFE5D8;background:#EEF6F1;color:#244F3B;border-radius:10px;padding:10px 14px;margin:12px 0 0;font-size:14px;max-width:62ch}
@@ -204,7 +206,7 @@
         <p>This uses your webcam to work out where you're looking on the screen. It takes about five minutes:
            a short setup, a camera check, a 30-second calibration and a 30-second accuracy check.
            Only the estimated gaze position and your answers to the questions are recorded. No video leaves your computer.</p>
-        <p class="okbox" id="needTape"><b>You’ll need:</b> a bank or ID card (to measure your screen) <span id="needTapeWhat">and a tape measure or ruler</span> (to measure how far you sit from the camera).</p>
+        <p class="okbox" id="needTape"><b>You’ll need:</b> a bank or ID card (to measure your screen) <span id="needTapeWhat">and a tape measure or ruler</span> (to measure how far you sit from the camera). At the end, you’ll download your data files and email them to the researcher.</p>
         <div class="field"><label for="pid">Participant ID</label>
           <input id="pid" type="text" placeholder="e.g. P01" autocomplete="off" spellcheck="false">
           <div class="hint" style="margin-top:6px">Use the ID you were given. It only labels your data files.</div></div>
@@ -362,7 +364,7 @@
         </ol>
         <label class="opt"><input type="checkbox" id="optFs" checked><span>Use full screen for the tasks <span class="hint">(recommended, so the dots can reach the edges of the screen)</span></span></label>
         <details class="more"><summary>Advanced options</summary>
-          <label class="opt"><input type="checkbox" id="optSound" checked><span>Beep when I move out of position</span></label>
+          <label class="opt"><input type="checkbox" id="optSound" checked><span>Play a soft chime when I move out of position</span></label>
           <label class="opt"><input type="checkbox" id="optTape"><span>Ask for the viewing distance measured with a tape measure <span class="hint">(needed for reliable results in degrees; off = camera estimate)</span></span></label>
           <label class="opt"><input type="checkbox" id="optSmooth"><span>Smooth the gaze signal <span class="hint">(moving average; leave off to record WebGazer's raw output)</span></span></label>
         </details>
@@ -483,6 +485,7 @@
           <button class="linkbtn" id="dlValidation">Validation CSV</button>
           <button class="linkbtn" id="dlRaw">Raw samples CSV</button>
         </div>
+        <div class="sendbox"></div>
       </div>
       <p class="cite">Validation after Brand, Diamond, Thomas &amp; Gilbert-Diamond (2021), <em>Behavior Research Methods, 53</em>(4),
         1502–1514: 12-point 4×3 grid, each target shown for 2000 ms with a 250 ms blank between targets, first 100 ms after onset pruned; accuracy = mean offset, precision = RMS spread.
@@ -520,6 +523,7 @@
           <button class="btn ghost small" id="dlAll2">Download all data</button>
           <button class="linkbtn" id="dlSearch">Search results CSV</button>
         </div>
+        <div class="sendbox"></div>
       </div>
       <p class="cite">Fixation-identification task and ROC after Brand et al. (2021): 2 targets among 16 distractors, click = ground truth;
         fixations via an Engbert &amp; Kliegl (2003) velocity detector (λ=6, median-based SD); TP/FP/FN/TN scored within a 500 ms
@@ -539,6 +543,7 @@
         <button class="btn ghost" id="expBack">Back to results</button>
         <button class="btn" id="finishBtn">Finish and turn off camera</button>
       </div>
+      <div class="sendbox"></div>
     </div></div>
   </section>
 
@@ -546,10 +551,12 @@
   <section class="stage" id="s-done">
     <div class="sheet"><div class="card">
       <p class="eyebrow">Finished</p>
-      <h1>All done, thank you</h1>
-      <p>The camera is off. You can close this tab.</p>
+      <h1>Thank you! One last step: send your data</h1>
+      <p>The camera is off.</p>
       <p class="hint" id="doneSaved"></p>
-      <div class="row"><button class="btn ghost" id="doneDl">Download all data</button></div>
+      <div class="row"><button class="btn" id="doneDl">Download all data</button></div>
+      <div class="sendbox"></div>
+      <p class="hint" style="margin-top:16px">Once you’ve sent the email, you can close this tab.</p>
     </div></div>
   </section>
 
@@ -629,7 +636,8 @@ const SMOOTH_ALPHA = 0.35;      // strength when smoothing is on: 1 = none, lowe
 const USE_KALMAN = false;      // WebGazer's own Kalman filter (see README before switching on)
 const REGRESSION = 'ridge';    // WebGazer regression: 'ridge' | 'weightedRidge'
 const DIST_TOL = 8;            // cm of drift from the starting distance before a task pauses
-const GRADE = { accDeg:[3,5], precDeg:[3,5], accPx:[110,185], precPx:[110,185] };  // [good, fair] upper limits; above fair = poor
+const GRADE = { accDeg:[3,6], precDeg:[3,6], accPx:[110,220], precPx:[110,220] };  // [good, fair] upper limits; above fair = poor
+const SEND_TO = 'f0086p4@dartmouth.edu', SEND_SUBJECT = 'eyetracking';   // where participants email their data files
 const DIST_MIN = 50, DIST_MAX = 70;   // cm, webcam to eye: participants must sit in this range (checked on the tape measurement)
 const PASS_MIN_VALID = 80;            // % of frames with a gaze estimate needed to pass the check
 const MAX_ATTEMPTS = 3;               // failed calibration checks before "Continue anyway" is offered
@@ -1086,16 +1094,20 @@ $('#tapeRedo').onclick=openTape;
 /* ============================================================
    POSITION WATCHDOG — pauses a task while the face is lost or the person has moved
    ============================================================ */
-let alertOsc=null;
-function startAlert(){ if(!soundOn) return;
+function chime(ac){                      // soft two-note chime: sine tones with a gentle fade, not a buzzer
+  const t=ac.currentTime;
+  [[523.25,0],[392.0,0.22]].forEach(([f,dt])=>{ const o=ac.createOscillator(), g=ac.createGain();
+    o.type='sine'; o.frequency.value=f;
+    g.gain.setValueAtTime(0.0001,t+dt); g.gain.exponentialRampToValueAtTime(0.03,t+dt+0.04); g.gain.exponentialRampToValueAtTime(0.0001,t+dt+0.7);
+    o.connect(g); g.connect(ac.destination); o.start(t+dt); o.stop(t+dt+0.75); });
+}
+let alertTimer=null;
+function startAlert(){ if(!soundOn||alertTimer) return;
   try{ if(!window.__ac) window.__ac=new (window.AudioContext||window.webkitAudioContext)();
-    const ac=window.__ac; if(ac.state==='suspended') ac.resume(); if(alertOsc) return;
-    alertOsc=ac.createOscillator(); const g=ac.createGain();
-    alertOsc.type='square'; alertOsc.frequency.value=660; g.gain.value=0.05;
-    alertOsc.connect(g); g.connect(ac.destination); alertOsc.start();
-    alertOsc._iv=setInterval(()=>{ g.gain.value=g.gain.value>0.01?0:0.05; },350);
+    const ac=window.__ac; if(ac.state==='suspended') ac.resume();
+    chime(ac); alertTimer=setInterval(()=>chime(ac),3000);   // once when the task pauses, then every 3 s
   }catch(e){} }
-function stopAlert(){ if(!alertOsc)return; try{ clearInterval(alertOsc._iv); alertOsc.stop(); }catch(e){} alertOsc=null; }
+function stopAlert(){ clearInterval(alertTimer); alertTimer=null; }
 let pauseWhy=null, driftSince=null, okSince=null;
 function beginPause(why){ paused=true; pauseCount++; pauseWhy=why; okSince=null;
   placeCam('camSlotRepo'); $('#reposition').classList.add('on'); startAlert(); logEvent('pause',0,0); updatePauseText(); }
@@ -1374,14 +1386,17 @@ function finish(){
   try{ if(camStream) camStream.getTracks().forEach(t=>t.stop()); }catch(e){}
   recording=false; trackerOn=false; placeCam(null);
   if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
-  $('#doneSaved').textContent=unsaved?'You haven\u2019t downloaded the data from this session yet.':'Your data files have been downloaded.';
+  $('#doneSaved').textContent=unsaved?'You haven\u2019t downloaded all the data from this session yet. Press \u201cDownload all data\u201d first.':'Your data files have been downloaded. Now email them, as below.';
+  renderSend();
   show('done');
 }
 
 /* ============================================================
    CSV
    ============================================================ */
-function download(name,text){const b=new Blob([text],{type:'text/csv'}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);}
+const downloaded=[];
+function download(name,text){ if(!downloaded.includes(name)) downloaded.push(name); renderSend();
+  const b=new Blob([text],{type:'text/csv'}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);}
 function stamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());}
 function saveRaw(){ if(!sessionLog.length)return false; const rows=['participant,t_ms,phase,event,x,y,screen_w,screen_h,px_per_cm,dist_cm']
   .concat(sessionLog.map(r=>`${pid},${r.t},${r.phase},${r.ev},${r.x},${r.y},${r.w},${r.h},${pxPerCm||''},${r.d}`));
@@ -1434,6 +1449,21 @@ async function saveAll(){
   if(n){ unsaved=false; toast(n>1?`Downloading ${n} files. If your browser asks, allow multiple downloads.`:'Downloading 1 file.'); }
   else toast('There\u2019s no data to download yet.');
 }
+function mailtoHref(){
+  const files=downloaded.length?downloaded.map(f=>'- '+f).join('\n'):'- (download the files first, then attach them)';
+  const body=`Hello,\n\nPlease find my eye-tracking data files attached.\n\nParticipant ID: ${pid}\nFiles:\n${files}\n\n(The files are in your Downloads folder. Please attach them before sending.)`;
+  return `mailto:${SEND_TO}?subject=${encodeURIComponent(SEND_SUBJECT+' - participant '+pid)}&body=${encodeURIComponent(body)}`;
+}
+function renderSend(){
+  const files=downloaded.length?`Attach these files from your Downloads folder: ${downloaded.map(esc).join(', ')}`:'Download all data first; the files will be listed here.';
+  document.querySelectorAll('.sendbox').forEach(b=>{ b.innerHTML=
+    `<b>Please email all your data files to the researcher.</b> Download all data, then send the files to <a href="${mailtoHref()}">${SEND_TO}</a> with <b>${SEND_SUBJECT}</b> in the subject line.
+     <p class="files">${files}</p>
+     <div class="row tight"><a class="btn ghost small" href="${mailtoHref()}">Open an email</a><button class="linkbtn copyaddr">Copy the email address</button></div>`; });
+  document.querySelectorAll('.sendbox .copyaddr').forEach(c=>c.onclick=async()=>{
+    try{ await navigator.clipboard.writeText(SEND_TO); toast('Email address copied.'); }catch(e){ toast(SEND_TO); } });
+}
+renderSend();
 addEventListener('beforeunload',e=>{ if(unsaved){ e.preventDefault(); e.returnValue=''; } });
 
 /* ============================================================
