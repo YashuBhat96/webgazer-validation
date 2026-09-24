@@ -473,10 +473,7 @@
         <button class="btn" id="toSearch">Next: search task</button>
         <button class="btn ghost" id="toExp">Skip to experiments</button>
       </div>
-      <p class="hint" id="lockNote" hidden>The search task and experiments unlock once the accuracy check passes. A check passes when accuracy and precision are within 5° and at least 80% of moments have a gaze estimate.</p>
       <div class="row tight">
-        <button class="btn ghost small" id="recal">Recalibrate</button>
-        <button class="btn ghost small" id="reval">Validate again</button>
         <button class="btn ghost small" id="gazeToggle" aria-pressed="false">Show my gaze</button>
       </div>
       <div class="group">
@@ -635,7 +632,8 @@ const DIST_TOL = 8;            // cm of drift from the starting distance before 
 const GRADE = { accDeg:[3,5], precDeg:[3,5], accPx:[110,185], precPx:[110,185] };  // [good, fair] upper limits; above fair = poor
 const DIST_MIN = 50, DIST_MAX = 70;   // cm, webcam to eye: participants must sit in this range (checked on the tape measurement)
 const PASS_MIN_VALID = 80;            // % of frames with a gaze estimate needed to pass the check
-const MAX_ATTEMPTS = 3;               // after this many failed checks, participants are asked to save data and contact the researcher
+const MAX_ATTEMPTS = 3;               // failed calibration checks before "Continue anyway" is offered
+const CHECK_POINTS = [[.5,.5],[.2,.2],[.8,.2],[.2,.8],[.8,.8]];   // quick calibration check before the tasks (same timing as the 12-point task)
 const CAM_W = 400;             // camera preview width (px)
 
 /* ============================================================
@@ -694,7 +692,7 @@ let sx=null, sy=null;                          // EMA-smoothed gaze
 let emaAlpha=SMOOTHING?SMOOTH_ALPHA:1, kalmanOn=USE_KALMAN, soundOn=true, dispX=null, dispY=null;
 let sessionLog=[], recording=false, phase='setup', t0=0, pid='anon', unsaved=false;
 let pxPerCm=null, distCm=null, distSource='camera estimate', anchorEstCm=null;
-let paused=false, pauseCount=0, calibrated=false, calRuns=0, checkRuns=0, failedChecks=0, passed=false, calViewport=null, viewportChanged=false;
+let paused=false, pauseCount=0, calibrated=false, calRuns=0, checkRuns=[], failedChecks=0, passed=false, continuedAnyway=false, valKind='main', calViewport=null, viewportChanged=false;
 let lastSummary=null;
 let searchTrials=[], curTrial=null, searchActive=false, lastSearch=null;
 let trackerOn=false, trackerHooked=false, modelReady=false, modelError=null;
@@ -1173,8 +1171,8 @@ async function runCalibration(){
     dot.classList.add('small'); await sleep(120); dot.remove(); svg.remove();
   }
   if(stop()) return;
-  hud('cal','Done',1); calibrated=true; calRuns++; logEvent('cal_done',0,0);
-  showValIntro();
+  hud('cal','Done',1); calibrated=true; calRuns++; passed=false; logEvent('cal_done',0,0);
+  showCheckIntro();
 }
 
 /* ============================================================
@@ -1185,11 +1183,41 @@ const V_COLS=[.10,.3667,.6333,.90], V_ROWS=[.12,.50,.88];
 // the first 100 ms after target onset are dropped before computing accuracy and precision.
 const DWELL=2000, ITI=250, PRUNE=100;
 const FIND_MS=0;      // optional extra time before recording starts (not in Brand); 0 = Brand's timing
-function showValIntro(){
+function showCheckIntro(){
   phase='instructions';
-  instruct('Step 4 of 5','Now we check it',
-    '<p>A cross appears in 12 places, one at a time. When it appears, find it and <b>keep looking at its centre</b> until it moves. Don\u2019t click anything. About 30 seconds.</p><p class="hint">This part measures how accurate the tracking is. Stay where you are and keep your head still.</p>',
-    [{label:'Start the check',primary:true,fs:true,fn:runValidation},{label:'Recalibrate first',fn:showCalIntro}]);
+  instruct('Step 3 of 5','Quick calibration check',
+    `<p>Before the tasks, a cross appears in ${CHECK_POINTS.length} places to check the calibration. Look at each one until it moves. About 12 seconds.</p><p class="hint">If the calibration isn\u2019t accurate enough, you\u2019ll recalibrate before going on. Stay where you are and keep your head still.</p>`,
+    [{label:'Start the quick check',primary:true,fs:true,fn:()=>runValidation('check')}]);
+}
+function checkOutcome(results,st){
+  const ok=results.filter(r=>r.accPx!=null);
+  const accPx=ok.length?mean(ok.map(r=>r.accPx)):null, precPx=ok.length?mean(ok.map(r=>r.precPx)):null;
+  const accDeg=accPx!=null?pxToDeg(accPx):null, precDeg=precPx!=null?pxToDeg(precPx):null;
+  const within=(d,p,lim,limPx)=>d!=null?d<=lim:(p!=null&&p<=limPx);
+  const validity=(st.nGot+st.nNull)>0?100*st.nGot/(st.nGot+st.nNull):0;
+  const pass=ok.length>=results.length-1 && within(accDeg,accPx,GRADE.accDeg[1],GRADE.accPx[1]) && within(precDeg,precPx,GRADE.precDeg[1],GRADE.precPx[1])
+             && validity>=PASS_MIN_VALID && !viewportChanged;
+  checkRuns.push({accPx,accDeg,precPx,precDeg,validity,pass});
+  const shown=accDeg!=null?`${accDeg.toFixed(1)}\u00b0`:accPx!=null?`${Math.round(accPx)} px`:'no gaze data';
+  phase='instructions';
+  if(pass){ passed=true; showValIntro(`Calibration check passed (about ${shown}).`); return; }
+  failedChecks++;
+  const why=viewportChanged?'The window changed size after calibration.':validity<PASS_MIN_VALID?'The tracker lost your eyes too often.':`The gaze was about ${shown} off; it needs to be within ${GRADE.accDeg[1]}\u00b0.`;
+  const tips='<p class="hint">Before trying again: sit 50\u201370 cm from the screen, get more light on your face, raise the camera to eye level, and keep your head still while the dots and crosses are shown.</p>';
+  if(failedChecks<MAX_ATTEMPTS){
+    instruct('Step 3 of 5','Let\u2019s recalibrate',`<p>The calibration isn\u2019t accurate enough yet. ${why}</p>${tips}`,
+      [{label:'Recalibrate',primary:true,fs:true,fn:runCalibration},{label:'Back to camera check',fn:runDistance}]);
+  } else {
+    instruct('Step 3 of 5',`Still not accurate enough after ${failedChecks} tries`,`<p>${why} You can recalibrate again, or continue anyway. If you continue, your data will be marked as not having passed the check.</p>${tips}`,
+      [{label:'Recalibrate',primary:true,fs:true,fn:runCalibration},{label:'Continue anyway',fs:true,fn:()=>{ continuedAnyway=true; showValIntro(''); }},{label:'Back to camera check',fn:runDistance}]);
+  }
+}
+function showValIntro(passedMsg){
+  if(!passed&&!continuedAnyway){ showCheckIntro(); return; }
+  phase='instructions';
+  instruct('Step 4 of 5','Accuracy task',
+    (passedMsg?`<p class="okbox" style="margin:0 0 12px">\u2713 ${esc(passedMsg)}</p>`:'')+'<p>A cross appears in 12 places, one at a time. When it appears, find it and <b>keep looking at its centre</b> until it moves. Don\u2019t click anything. About 30 seconds.</p><p class="hint">This part measures how accurate the tracking is. Stay where you are and keep your head still.</p>',
+    [{label:'Start the accuracy task',primary:true,fs:true,fn:()=>runValidation('main')},{label:'Recalibrate first',fn:showCalIntro}]);
 }
 async function dwell(){      // find time, then collect one point's samples; flags points interrupted by a pause
   const pc=pauseCount, tShow=now();
@@ -1199,14 +1227,16 @@ async function dwell(){      // find time, then collect one point's samples; fla
   collecting=false;
   return {tOn, samples:curSamples.slice(), nulls:curNulls.slice(), interrupted:pauseCount!==pc};
 }
-async function runValidation(){
+async function runValidation(kind){
+  kind=kind==='check'?'check':'main'; valKind=kind;
   if(!calibrated){ showCalIntro(); return; }
+  if(kind==='main'&&!passed&&!continuedAnyway){ showCheckIntro(); return; }
   aborted=false; const my=++runId; const stop=()=>aborted||my!==runId;
-  phase='validate'; show('val'); placeCam(null); setLiveDot(false);
+  phase=kind==='check'?'calibration_check':'validate'; show('val'); placeCam(null); setLiveDot(false);
   webgazer.removeMouseEventListeners();
   if(calViewport&&(innerWidth!==calViewport.w||innerHeight!==calViewport.h)) viewportChanged=true;
   const st=stages.val; clearStage(st);
-  const points=[]; V_ROWS.forEach(fy=>V_COLS.forEach(fx=>points.push([fx,fy])));
+  const points=[]; if(kind==='check') CHECK_POINTS.forEach(p=>points.push(p.slice())); else V_ROWS.forEach(fy=>V_COLS.forEach(fx=>points.push([fx,fy])));
   for(let i=points.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[points[i],points[j]]=[points[j],points[i]];}
   hud('val','Get ready',0); await countdown(st,my,'Look at the cross'); if(stop()) return;
   const results=[], intervals=[]; let nGot=0,nNull=0; const pc0=pauseCount;
@@ -1228,7 +1258,8 @@ async function runValidation(){
     st.querySelectorAll('.vtarget').forEach(e=>e.remove()); await sleep(ITI);
   }
   if(stop()) return;
-  hud('val','Done',1); logEvent('val_done',0,0);
+  hud('val','Done',1); logEvent(kind==='check'?'check_done':'val_done',0,0);
+  if(kind==='check'){ checkOutcome(results,{nGot,nNull}); return; }
   computeResults(results,{intervals,nGot,nNull,pauses:pauseCount-pc0});
 }
 function pointStats(i,x,y,s){
@@ -1248,9 +1279,8 @@ function abortTask(reason){
   clearStage(stages.cal); clearStage(stages.val);
   if(where==='search'){ $('#searchArea').innerHTML=''; show(lastSummary?'res':'dist'); toast((reason||'Search task stopped')+'. Nothing from it was scored.'); return; }
   const btns=[];
-  if(where==='val'&&calibrated) btns.push({label:'Restart the check',primary:true,fs:true,fn:runValidation});
+  if(where==='val'&&calibrated) btns.push({label:valKind==='check'?'Restart the quick check':'Restart the accuracy task',primary:true,fs:true,fn:()=>runValidation(valKind)});
   btns.push({label:where==='cal'||!calibrated?'Restart calibration':'Recalibrate',primary:!btns.length,fs:true,fn:runCalibration});
-  if(lastSummary) btns.push({label:'Back to results',fn:()=>show('res')});
   btns.push({label:'Back to camera check',fn:runDistance});
   phase='instructions';
   instruct('Stopped',where==='cal'?'Calibration stopped':'Check stopped',`<p>${esc(reason||'You stopped the task')}. Choose how to carry on.</p>`,btns);
@@ -1289,19 +1319,14 @@ function computeResults(results,st){
   const [ga,ca,sa]=accDeg!=null?grade(accDeg,GRADE.accDeg):grade(accPx,GRADE.accPx);
   const [gp,cp,sp]=precDeg!=null?grade(precDeg,GRADE.precDeg):grade(precPx,GRADE.precPx);
   const worst=ok.length?Math.max(sa,sp):2;
-  checkRuns++; passed=worst<2 && validity!=null && validity>=PASS_MIN_VALID && !viewportChanged;
-  if(!passed) failedChecks++;
-  const outOfTries=!passed && failedChecks>=MAX_ATTEMPTS;
+
   let V=[['good','\u2713','Tracking looks good','You can move on.'],
            ['fair','!','Tracking is usable','Recalibrating may improve it: more light on your face, camera at eye level, head still.'],
-           ['poor','!','Tracking isn\u2019t good enough yet','Please recalibrate. Before you do: sit 50\u201370 cm from the screen, get more light on your face, raise the camera to eye level and keep your head still.']][worst];
-  if(!passed && worst<2) V=['poor','!','Tracking isn\u2019t good enough yet',viewportChanged?'The window changed size after calibration. Please recalibrate.':'Too many moments had no gaze estimate. Please recalibrate, keeping your face in view and well lit.'];
-  if(outOfTries) V=['poor','!',`Still not good enough after ${MAX_ATTEMPTS} tries`,'Please download your data below and let the researcher know. You can keep trying: recalibrate after improving the light, your distance (50\u201370 cm) or the camera position.'];
+           ['poor','!','Tracking was weak in the accuracy task','This is recorded with your data. You can still continue to the search task.']][worst];
+  if(continuedAnyway) V=[V[0],V[1],V[2],V[3]+' Note: the calibration check was not passed; you chose to continue anyway.'];
   $('#verdict').className='verdict '+V[0]; $('#verdictIc').textContent=V[1]; $('#verdictT').textContent=V[2]; $('#verdictP').textContent=V[3];
   // the search task and experiments unlock only after a passed check; a failed check means recalibrating
-  $('#toSearch').disabled=!passed; $('#toExp').disabled=!passed; $('#reval').hidden=!passed;
-  $('#recal').className='btn'+(passed?' ghost small':''); $('#recal').textContent=passed?'Recalibrate':'Recalibrate now';
-  $('#lockNote').hidden=passed;
+
   $('#metricGrid').innerHTML=`
     <div class="metric"><div class="k">Accuracy</div><div class="v mono">${f(accPx)}<span class="u">px</span></div><div class="sub">${accDeg!=null?accDeg.toFixed(2)+'\u00b0 visual angle'+(distSource!=='tape measure'?' (estimated)':''):'no distance, so px only'}</div><div class="sub">${xyLine(ax.accX,ax.accY,true)}</div><div class="sub ${ca}">${ga}</div></div>
     <div class="metric"><div class="k">Precision (RMS)</div><div class="v mono">${f(precPx)}<span class="u">px</span></div><div class="sub">${precDeg!=null?precDeg.toFixed(2)+'\u00b0':'\u2014'}</div><div class="sub">${xyLine(ax.precX,ax.precY,true)}</div><div class="sub ${cp}">${gp}</div></div>
@@ -1385,8 +1410,9 @@ function saveValidation(){ const s=lastSummary; if(!s)return false; const q=v=>`
   kv('camera_fov_deg_implied',impliedFov!=null?impliedFov.toFixed(1):'');
   kv('px_per_cm',s.pxPerCm||''); kv('screen_w',s.screenW); kv('screen_h',s.screenH); kv('fullscreen',s.fullscreen?'yes':'no');
   kv('viewport_changed_since_calibration',s.viewportChanged?'yes':'no'); kv('position_pauses',s.pauses); kv('calibration_runs',s.calRuns);
-  kv('smoothing',emaAlpha<1?'on':'off'); kv('ema_alpha',emaAlpha); kv('regression',REGRESSION); kv('kalman_filter',kalmanOn?'on':'off'); kv('calibration_points',CAL.length); kv('calibration_samples_per_point',CAL_SAMPLES); kv('validation_passed',passed?'yes':'no'); kv('validation_attempt',checkRuns); kv('failed_checks_so_far',failedChecks);
-  kv('pass_rule',`accuracy and precision <= ${GRADE.accDeg[1]} deg (or ${GRADE.accPx[1]} px without a distance), valid >= ${PASS_MIN_VALID}%, window unchanged`);
+  kv('smoothing',emaAlpha<1?'on':'off'); kv('ema_alpha',emaAlpha); kv('regression',REGRESSION); kv('kalman_filter',kalmanOn?'on':'off'); kv('calibration_points',CAL.length); kv('calibration_samples_per_point',CAL_SAMPLES); kv('calibration_check_passed',passed?'yes':continuedAnyway?'no (continued anyway)':'no'); kv('calibration_check_attempts',checkRuns.length);
+  kv('calibration_check_results',q(checkRuns.map((c,i)=>`${i+1}: ${c.accDeg!=null?c.accDeg.toFixed(2)+' deg':c.accPx!=null?Math.round(c.accPx)+' px':'no data'} ${c.pass?'pass':'fail'}`).join('; ')));
+  kv('calibration_check_rule',`${CHECK_POINTS.length} points; accuracy and precision <= ${GRADE.accDeg[1]} deg (or ${GRADE.accPx[1]} px without a distance), valid >= ${PASS_MIN_VALID}%, window unchanged`);
   kv('distance_rule_cm',`${DIST_MIN}-${DIST_MAX}`); kv('validation_target','cross with shrinking ring, 48 px, on the dark calibration background');
   kv('validation_grid_x_fractions',V_COLS.join(';')); kv('validation_grid_y_fractions',V_ROWS.join(';')); kv('validation_target_ms',FIND_MS+DWELL); kv('validation_blank_ms',ITI); kv('validation_pruned_ms',PRUNE); kv('validation_extra_find_ms',FIND_MS);
   kv('ipd_mm_assumed',IPD_MM); kv('camera_fov_deg_assumed',CAM_FOV_DEG);
@@ -1413,10 +1439,8 @@ addEventListener('beforeunload',e=>{ if(unsaved){ e.preventDefault(); e.returnVa
 /* ============================================================
    WIRING
    ============================================================ */
-$('#recal').onclick=showCalIntro;
-$('#reval').onclick=showValIntro;
 $('#gazeToggle').onclick=()=>setLiveDot(!liveDot);
-const needPass=()=>{ if(passed) return false; toast('Recalibrate first: the accuracy check needs to pass.'); return true; };
+const needPass=()=>false;   // the gate is the calibration check before the tasks
 $('#toExp').onclick=()=>{ if(needPass()) return; renderExperiments(); show('exp'); };
 $('#toExp2').onclick=()=>{ if(needPass()) return; renderExperiments(); show('exp'); };
 $('#expBack').onclick=()=>show('res');
