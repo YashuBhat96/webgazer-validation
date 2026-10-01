@@ -1155,7 +1155,7 @@ async function countdown(st,my,label){
 function showCalIntro(){
   phase='instructions';
   instruct('Step 3 of 5','Follow the dot',
-    `<p>A dot appears in ${CAL.length} places, one after another. Keep your eyes on it until it moves on. It moves by itself, so there\u2019s nothing to click. About 30 seconds.</p><p class="hint">Stay where you are: keep your head still and at the same distance. Press Esc if you need to stop.</p>`,
+    `<p>A dot appears in ${CAL.length} places, one after another. Keep your eyes on it until it moves on. It moves by itself, so there\u2019s nothing to click. This will take about 30 seconds.</p><p class="hint">Stay where you are: keep your head still and at the same distance. Press Esc if you need to stop.</p>`,
     [{label:'Start calibration',primary:true,fs:true,fn:runCalibration},{label:'Back to camera check',fn:runDistance}]);
 }
 async function runCalibration(){
