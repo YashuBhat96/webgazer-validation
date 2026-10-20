@@ -1,0 +1,2043 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gaze Check — WebGazer calibration &amp; validation</title>
+<style>
+  :root{
+    --paper:#F5F4F1; --surface:#FFFFFF; --ink:#1C2126; --mut:#6B7178; --line:#E7E4DE;
+    --accent:#2F6E63; --accent-weak:#ECF2F0; --good:#3E8E68; --warn:#B07E2C; --bad:#C4563F;
+    --stage:#14171C; --target:#D8A63E; --gaze:#3E9C8E; --err:#D2705B; --r:14px;
+  }
+  *{box-sizing:border-box} html,body{margin:0;height:100%}
+  body{background:var(--paper);color:var(--ink);font:400 16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Inter",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+  h1,h2{font-weight:650;letter-spacing:-.015em;color:var(--ink)}
+  .mono{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}
+  button{font:inherit;cursor:pointer} a{color:var(--accent)}
+  #app{position:fixed;inset:0}
+  .stage{position:absolute;inset:0;display:none} .stage.on{display:block}
+  .sheet{position:absolute;inset:0;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:84px 24px 48px}
+  .card{width:min(720px,100%);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:40px 44px 36px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .card.wide{width:min(920px,100%)}
+  @media(max-width:640px){.card{padding:28px 22px}}
+  .eyebrow{color:var(--accent);font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin:0 0 10px;font-weight:600}
+  h1{font-size:30px;margin:0 0 12px;line-height:1.15} h2{font-size:18px;margin:28px 0 10px}
+  p{margin:0 0 14px;color:#3C4247;max-width:62ch} .hint{font-size:14px;color:var(--mut)}
+  .btn{background:var(--ink);color:#fff;border:0;border-radius:10px;padding:12px 22px;font-weight:600;transition:opacity .12s,transform .04s}
+  .btn:hover{opacity:.9} .btn:active{transform:translateY(1px)}
+  .btn[disabled]{background:#D7D4CE;color:#9a9a95;cursor:not-allowed}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)} .btn.ghost:hover{border-color:#C9C5BD;background:#faf9f7}
+  .btn.accent{background:var(--accent)} .btn.small{padding:8px 14px;font-size:14px}
+  .btn.submit-primary{display:block;width:100%;min-height:86px;padding:21px 26px;margin:24px 0 10px;
+    background:#176C42;color:#fff;font-size:25px;font-weight:800;line-height:1.25;border:3px solid #104C32;
+    border-radius:16px;box-shadow:0 8px 24px rgba(12,90,50,.20)}
+  .btn.submit-primary:hover:not(:disabled){background:#0F5E37;box-shadow:0 10px 27px rgba(12,90,50,.28)}
+  .btn.submit-primary:focus-visible{outline:4px solid #E0A22E;outline-offset:4px}
+  .btn.submit-primary:disabled{background:#A6BDAE;border-color:#99B6A2;color:#163923;box-shadow:none}
+  .submission-note{max-width:70ch;font-size:15px;color:#365D49}
+  .submit-result{font-size:16px;font-weight:650;min-height:26px}
+  .linkbtn{background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;text-underline-offset:3px;font-size:14px}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:26px}
+  .row.tight{margin-top:12px}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .status{display:inline-flex;align-items:center;gap:9px;font-size:14px;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:7px 14px}
+  .dot-ind{width:9px;height:9px;border-radius:50%;background:#C4C0B8;flex:none}
+  .dot-ind.live{background:var(--good)} .dot-ind.wait{background:var(--warn)} .dot-ind.bad{background:var(--bad)}
+  .field{margin:16px 0 4px} .field label{display:block;font-size:13px;color:var(--mut);margin-bottom:6px;font-weight:500}
+  .field input{width:200px;max-width:100%;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:11px 13px;font:inherit}
+  .field .opt{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#3C4247;font-weight:400;margin:0}
+  .field .opt input{width:16px;height:16px;padding:0;margin:0;border:0}
+  .field input:focus{outline:2px solid var(--accent);outline-offset:1px}
+  .guide-text{display:none} @media(max-width:600px){.guide-text{display:block}}
+  .guide{display:block;width:100%;height:auto;margin:18px 0 22px;border-radius:14px}
+  .illus{display:block;margin:16px 0;max-width:380px;width:100%;border:1px solid var(--line);border-radius:12px;background:#fbfaf8}
+  .numlist{list-style:none;counter-reset:s;padding:0;margin:16px 0}
+  .numlist li{counter-increment:s;position:relative;padding:0 0 14px 42px;color:#3C4247;max-width:60ch}
+  .numlist li::before{content:counter(s);position:absolute;left:0;top:-2px;width:28px;height:28px;border-radius:50%;background:var(--accent-weak);color:var(--accent);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+  .errbox{display:none;border:1px solid #F0CFC7;background:#FBEDEA;color:#6E2C1F;border-radius:10px;padding:12px 14px;margin:14px 0 0;font-size:14px;max-width:62ch}
+  .errbox.on{display:block} .errbox b{color:#5A2014} .errbox p{color:inherit;margin:6px 0 0}
+  .seg{display:inline-flex;flex-wrap:wrap;gap:3px;border:1px solid var(--line);border-radius:11px;padding:3px;background:#faf9f7}
+  .seg label{position:relative;cursor:pointer;margin:0}
+  .seg input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+  .seg span{display:block;padding:7px 14px;border-radius:8px;font-size:14px;color:#3C4247}
+  .seg input:checked+span{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 0 0 1px #D9D5CE}
+  .seg input:focus-visible+span{outline:2px solid var(--accent);outline-offset:1px}
+  .field input.wide{width:440px}
+  .tapein{display:flex;gap:10px;align-items:center;flex-wrap:wrap} .tapein input{width:120px}
+  .staybox{margin:22px 0 0;padding:14px 16px;border-radius:10px;background:var(--accent-weak);border-left:4px solid var(--accent);color:#244F3B;font-size:15px;max-width:70ch}
+  .staybox b{display:block;color:var(--ink);font-size:16px;margin-bottom:2px}
+  .sendbox{margin:16px 0 0;padding:14px 16px;border-radius:10px;background:var(--accent-weak);border-left:4px solid var(--accent);color:#244F3B;font-size:15px;max-width:66ch}
+  .sendbox b{color:var(--ink)} .sendbox .files{font-size:13px;color:var(--mut);margin:8px 0 0;word-break:break-all} .sendbox .row{margin-top:10px}
+  .findhelp p{font-size:14px;margin:8px 0 0}
+  [hidden]{display:none!important}
+  .okbox{border:1px solid #CFE5D8;background:#EEF6F1;color:#244F3B;border-radius:10px;padding:10px 14px;margin:12px 0 0;font-size:14px;max-width:62ch}
+
+  /* progress rail */
+  #rail{position:fixed;top:0;left:0;right:0;z-index:30;height:56px;display:flex;align-items:center;justify-content:center;background:rgba(245,244,241,.94);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+  #rail ol{list-style:none;display:flex;gap:4px;margin:0;padding:0 12px}
+  #rail li{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut);padding:6px 12px 6px 7px;border-radius:999px;white-space:nowrap}
+  #rail .n{width:22px;height:22px;border-radius:50%;border:1.5px solid #C9C5BD;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:none}
+  #rail li.active{color:var(--accent);background:var(--accent-weak);font-weight:600}
+  #rail li.active .n{border-color:var(--accent);background:var(--accent);color:#fff}
+  #rail li.done .n{border-color:var(--good);background:var(--good);color:#fff}
+  @media(max-width:700px){#rail li:not(.active) .l{display:none}}
+  body.task #rail{display:none}
+
+  /* setup panels */
+  .panel{display:none} .panel.on{display:block}
+  #cardBox{height:52px;background:#6D7A88;border-radius:8px;margin:12px 0 4px;box-shadow:inset 0 -14px 0 rgba(0,0,0,.08)}
+  .slider{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  input[type=range]{width:320px;max-width:100%;accent-color:var(--accent)}
+  .nudge{width:36px;height:36px;border-radius:9px;border:1px solid var(--line);background:#fff;font-weight:700;color:var(--ink)}
+  .nudge:hover{background:#faf9f7}
+  .readout{font-size:14px;color:#3C4247;background:#fbfaf8;border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:14px 0 0;max-width:62ch}
+  .opt{display:flex;align-items:flex-start;gap:10px;margin:10px 0;cursor:pointer;color:#3C4247;font-size:15px;max-width:62ch}
+  .opt input{margin-top:5px;width:16px;height:16px;accent-color:var(--accent);flex:none}
+  details.more{margin:14px 0 0} details.more summary{cursor:pointer;color:var(--mut);font-size:14px}
+  details.more[open] summary{margin-bottom:6px}
+
+  /* camera */
+  #camPark{position:fixed;left:-10000px;top:0;opacity:0;pointer-events:none}
+  #camDock{position:relative;transform:translateZ(0);overflow:hidden;border-radius:12px;background:#0f1216;width:400px;height:300px;max-width:100%}
+  .camslot{display:flex;justify-content:center}
+  .camcap{font-size:13px;color:var(--mut);margin:8px 0 0;text-align:center}
+  .distgrid{display:grid;grid-template-columns:auto 1fr;gap:30px;align-items:start;margin-top:18px}
+  @media(max-width:860px){.distgrid{grid-template-columns:1fr}}
+  .checks{list-style:none;padding:0;margin:0;display:grid;gap:14px}
+  .checks li{display:grid;grid-template-columns:24px 1fr;gap:12px;align-items:start}
+  .checks .ic{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:#E7E4DE;color:#8a8f95;margin-top:1px}
+  .checks li.ok .ic{background:var(--good);color:#fff} .checks li.warn .ic{background:var(--warn);color:#fff} .checks li.bad .ic{background:var(--bad);color:#fff}
+  .checks .t{font-weight:600;font-size:15px;line-height:1.4} .checks .s{font-size:13px;color:var(--mut);line-height:1.45;margin-top:2px}
+  .trouble{display:none;margin-top:20px;border:1px solid var(--line);background:#fbfaf8;border-radius:12px;padding:14px 18px;font-size:14px;color:#3C4247}
+  .trouble.on{display:block} .trouble ul{margin:6px 0 0;padding-left:18px} .trouble li{margin:3px 0}
+
+  /* task stages */
+  /* Calibration and validation MUST share a background: the screen lights the face, and WebGazer
+     predicts from how the eyes look, so a brighter screen after calibration throws predictions off. */
+  #s-cal,#s-val{background:var(--stage)}
+  .dot{position:absolute;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;background:var(--target);transition:transform .15s}
+  .dot.small{transform:scale(.45)}
+  .ring{position:absolute;width:50px;height:50px;margin:-25px 0 0 -25px;pointer-events:none}
+  .ring circle{fill:none;stroke:var(--gaze);stroke-width:3;stroke-dasharray:151;stroke-dashoffset:151;transform:rotate(-90deg);transform-origin:center}
+  .vtarget{position:absolute;width:48px;height:48px;margin:-24px 0 0 -24px}
+  .vtarget::before,.vtarget::after{content:"";position:absolute;background:var(--target);border-radius:2px}
+  .vtarget::before{left:22px;top:0;width:4px;height:48px} .vtarget::after{top:22px;left:0;height:4px;width:48px}
+  .vtarget span{position:absolute;left:18px;top:18px;width:12px;height:12px;border-radius:50%;background:var(--target);box-shadow:0 0 0 3px var(--stage)}
+  .vtarget i{position:absolute;inset:-46px;border:3px solid var(--target);border-radius:50%;animation:vfind .9s ease-out forwards}
+  @keyframes vfind{from{transform:scale(1);opacity:.9}to{transform:scale(.3);opacity:0}}
+  @media (prefers-reduced-motion:reduce){.vtarget i{display:none}}
+  .pbar{position:absolute;left:0;top:0;height:3px;background:var(--gaze);width:0;transition:width .4s ease;opacity:.8}
+  .hud{position:absolute;left:50%;top:calc(81% - 16px);transform:translateX(-50%);display:flex;align-items:center;gap:10px;color:#9AA2AB;font-size:13px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:6px 14px;white-space:nowrap;pointer-events:none}
+  .hud .key{font-size:11px;color:#9AA2AB;border:1px solid rgba(255,255,255,.22);border-radius:5px;padding:0 6px;line-height:18px}
+  .count{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:84px;font-weight:650;color:#E8E3D6;line-height:1;pointer-events:none}
+  .count small{display:block;font-size:15px;font-weight:500;color:#9AA2AB;text-align:center;margin-top:14px}
+  #gazeDot{position:fixed;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:var(--gaze);box-shadow:0 0 0 4px rgba(62,156,142,.20);pointer-events:none;display:none;z-index:80}
+
+  /* overlays */
+  #reposition,#instruct{position:fixed;inset:0;z-index:55;display:none;align-items:center;justify-content:center;background:rgba(20,23,28,.60);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);padding:24px}
+  #reposition.on,#instruct.on{display:flex}
+  #reposition .box,.ibox{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:28px 30px;max-width:540px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+  #reposition .box{max-width:480px;text-align:center}
+  #reposition h2{margin:0 0 8px;color:var(--bad)} #reposition p{margin:0 auto 14px}
+  #repoLive{margin:12px auto 0!important;font-weight:600;color:var(--ink)!important}
+  .ibox h2{margin:0 0 6px;font-size:22px} .ibox .eyebrow{margin-bottom:8px}
+  .ibox .row{margin-top:20px} #iKey{margin:12px 0 0;font-size:13px}
+  #loading{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;background:rgba(245,244,241,.97);padding:24px;text-align:center}
+  #loading.on{display:flex} #loading .lbox{max-width:460px}
+  #loading h2{margin:0 0 8px} #loading p{margin:0 auto 16px}
+  .spinner{width:46px;height:46px;border-radius:50%;border:4px solid var(--line);border-top-color:var(--accent);margin:0 auto 20px;animation:spin .9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #toast{position:fixed;left:50%;bottom:24px;z-index:95;transform:translate(-50%,16px);opacity:0;pointer-events:none;background:var(--ink);color:#fff;font-size:14px;border-radius:10px;padding:10px 16px;max-width:min(560px,90vw);transition:opacity .2s,transform .2s;box-shadow:0 6px 24px rgba(0,0,0,.2)}
+  #toast.on{opacity:1;transform:translate(-50%,0)}
+
+  /* search */
+  .searchbar{position:absolute;left:0;right:0;top:0;z-index:20;display:flex;gap:14px;align-items:center;padding:12px 18px;background:#fff;border-bottom:1px solid var(--line);color:var(--ink);font-size:14px}
+  .searchbar .tag{color:var(--mut)} .searchbar .spacer{flex:1}
+  #s-search{background:#fff} #searchArea{position:absolute;inset:0}
+  .stim{position:absolute;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);width:110px;height:150px;margin:-75px 0 0 -55px;font-family:ui-monospace,monospace;color:#777;user-select:none}
+  .stim div{display:flex;align-items:center;justify-content:center;font-size:30px;line-height:1}
+  .stim .c{font-weight:700;color:#111} .stim.target{cursor:pointer} .stim .c.mir{transform:scaleX(-1)}
+
+  /* results */
+  .verdict{display:grid;grid-template-columns:30px 1fr;gap:12px;align-items:start;border-radius:12px;padding:14px 18px;margin:0 0 20px;border:1px solid var(--line)}
+  .verdict .ic{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+  .verdict .t{font-weight:650;font-size:17px;margin:1px 0 2px} .verdict p{margin:0;font-size:14px}
+  .verdict.good{background:#EEF6F1;border-color:#CFE5D8} .verdict.good .ic{background:var(--good)}
+  .verdict.fair{background:#FBF4E6;border-color:#EEDDB8} .verdict.fair .ic{background:var(--warn)}
+  .verdict.poor{background:#FBEDEA;border-color:#F0CFC7} .verdict.poor .ic{background:var(--bad)}
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:8px 0 22px}
+  @media(max-width:640px){.metrics{grid-template-columns:repeat(2,1fr)}}
+  #ptTable .xy{font-size:11px;color:var(--mut);margin-top:2px;white-space:nowrap}
+  .metric{background:#fbfaf8;border:1px solid var(--line);border-radius:12px;padding:15px 16px}
+  .metric .k{font-size:12px;color:var(--mut);margin-bottom:7px} .metric .v{font-size:26px;line-height:1;font-weight:650}
+  .metric .u{font-size:12px;color:var(--mut);margin-left:3px} .metric .sub{font-size:12px;color:var(--mut);margin-top:7px}
+  #mapWrap{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0f1216;margin-bottom:16px} #map{display:block;width:100%;height:auto}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--mut);margin:-4px 0 18px 2px}
+  .legend span{display:inline-flex;align-items:center;gap:7px} .swatch{width:12px;height:12px;border-radius:50%}
+  details.table summary{cursor:pointer;font-size:14px;color:var(--mut);margin:4px 0 8px}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px}
+  th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right} th:first-child,td:first-child{text-align:left} th{color:var(--mut);font-weight:600}
+  .note{font-size:13px;color:var(--mut);background:#fbfaf8;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:16px 0 0}
+  .warnlist{margin:0 0 16px;padding:0;list-style:none}
+  .warnlist li{font-size:14px;color:#6A4A12;background:#FBF4E6;border:1px solid #EEDDB8;border-radius:10px;padding:9px 13px;margin:0 0 8px}
+  .cite{font-size:12px;color:var(--mut);margin-top:12px;line-height:1.5}
+  .group{margin-top:24px;padding-top:18px;border-top:1px solid var(--line)}
+  .group .gl{font-size:13px;color:var(--mut);margin:0 0 2px}
+  #rocWrap{border:1px solid var(--line);border-radius:12px;background:#0f1216;padding:8px;margin-bottom:16px;display:flex;justify-content:center} #roc{max-width:100%;height:auto}
+  .exp{display:flex;align-items:center;justify-content:space-between;gap:14px;background:#fbfaf8;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:10px}
+  .exp .name{font-weight:600} .exp .u{font-size:12px;color:var(--mut);word-break:break-all}
+  .g-good{color:var(--good)} .g-warn{color:var(--warn)} .g-bad{color:var(--bad)}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important} .spinner{animation:none!important}}
+</style>
+</head>
+<body>
+<header id="rail" aria-label="Progress">
+  <ol>
+    <li class="active" aria-current="step"><span class="n">1</span><span class="l">Set up</span></li>
+    <li><span class="n">2</span><span class="l">Camera check</span></li>
+    <li><span class="n">3</span><span class="l">Calibrate</span></li>
+    <li><span class="n">4</span><span class="l">Validate</span></li>
+    <li><span class="n">5</span><span class="l">Results</span></li>
+  </ol>
+</header>
+
+<div id="app">
+
+  <!-- The participant questions and screen measurement come first. No participant ID is shown here. -->
+<!-- 1 · SETUP (three short panels) -->
+  <section class="stage on" id="s-setup">
+    <div class="sheet"><div class="card">
+
+      <div class="panel on" id="p-welcome">
+        <p class="eyebrow">Webcam eye tracking</p>
+        <h1>Gaze Check</h1>
+        <p>This uses your webcam to work out where you're looking on the screen. The accuracy check takes several minutes including setup; the optional 25 round visual search takes longer:
+           a short setup, a camera check, a 30-second calibration and a 30-second accuracy check.
+           The live webcam video is processed in your browser and is not intentionally uploaded by this page. Exports include gaze positions, timing, study visit type, device information, and optional answers. Do not begin without your study's consent procedure.</p>
+        <p class="okbox" id="needTape"><b>You’ll need:</b> a bank or ID card (to measure your screen) <span id="needTapeWhat">and a tape measure or ruler</span> (to measure how far you sit from the camera). At the end, press the large Submit Study Data button to send your records to the research server. If this is a local pilot, download a backup instead.</p>
+        <div class="field"><label for="participantName">Name (optional)</label>
+          <input id="participantName" class="wide" type="text" maxlength="100" placeholder="You may leave this blank" autocomplete="off" spellcheck="false">
+          <div class="hint" style="margin-top:6px">You do not need to provide a name. If entered, it will be included in the research submission. The system creates a separate study session ID automatically.</div></div>
+        <div class="field"><label id="lblExperience">Have you used an eye tracker before?</label>
+          <div class="seg" role="radiogroup" aria-labelledby="lblExperience">
+            <label><input type="radio" name="eyeTrackerExperience" value="yes"><span>Yes</span></label>
+            <label><input type="radio" name="eyeTrackerExperience" value="no"><span>No</span></label>
+          </div>
+          <p class="hint" style="margin-top:7px">This refers to previous experience with any eye tracking device. It is different from calibrating WebGazer during this session.</p>
+        </div>
+        <p class="hint">No invitation or participant ID is required. Your session is assigned a private random identifier automatically.</p>
+        <div class="errbox" id="inviteErr"></div>
+        <div id="resumeRow" hidden class="row"><button class="btn accent" id="resumeSubmission" type="button">SUBMIT PREVIOUSLY SAVED DATA</button></div>
+
+        <div class="row tight" style="margin-top:18px">
+          <span class="status" aria-live="polite"><span class="dot-ind wait" id="modelDot"></span><span id="modelMsg">Loading the eye tracker…</span></span>
+        </div>
+        <div class="errbox" id="modelErr"></div>
+        <div class="row"><button class="btn" id="toDemo">Next: demographic questions</button></div>
+      </div>
+
+      <div class="panel" id="p-demo">
+        <p class="eyebrow">Set up · 1 of 5</p>
+        <h1>Demographic questions</h1>
+        <p class="hint">These help describe who took part. Every question is optional: skip any you’d rather not answer.</p>
+        <div class="field"><label for="demoAge">Age</label>
+          <div class="tapein"><input id="demoAge" type="number" inputmode="numeric" min="1" max="120" step="1" style="width:110px" autocomplete="off"><span class="hint">years</span>
+            <label class="opt" style="margin:0 0 0 8px"><input type="checkbox" id="demoAgePnts"><span>Prefer not to say</span></label></div></div>
+        <div class="field"><label id="lblSex">Sex assigned at birth</label>
+          <div class="seg" role="radiogroup" aria-labelledby="lblSex">
+            <label><input type="radio" name="demoSex" value="female"><span>Female</span></label>
+            <label><input type="radio" name="demoSex" value="male"><span>Male</span></label>
+            <label><input type="radio" name="demoSex" value="intersex"><span>Intersex</span></label>
+            <label><input type="radio" name="demoSex" value="prefer not to say"><span>Prefer not to say</span></label>
+          </div></div>
+        <div class="field"><label id="lblRace">Race or ethnicity <span class="hint">(select all that apply)</span></label>
+          <div class="seg" role="group" aria-labelledby="lblRace" id="demoRace">
+            <label><input type="checkbox" value="American Indian or Alaska Native"><span>American Indian or Alaska Native</span></label>
+            <label><input type="checkbox" value="Asian"><span>Asian</span></label>
+            <label><input type="checkbox" value="Black or African American"><span>Black or African American</span></label>
+            <label><input type="checkbox" value="Hispanic or Latino"><span>Hispanic or Latino</span></label>
+            <label><input type="checkbox" value="Middle Eastern or North African"><span>Middle Eastern or North African</span></label>
+            <label><input type="checkbox" value="Native Hawaiian or Pacific Islander"><span>Native Hawaiian or Pacific Islander</span></label>
+            <label><input type="checkbox" value="White"><span>White</span></label>
+            <label><input type="checkbox" value="another"><span>Another race or ethnicity</span></label>
+            <label><input type="checkbox" value="prefer not to say"><span>Prefer not to say</span></label>
+          </div>
+          <input id="demoRaceOther" class="wide" type="text" placeholder="Please describe" autocomplete="off" hidden style="margin-top:8px"></div>
+        <div class="field"><label id="lblEyes">Eye colour <span class="hint">(it can affect how well eye tracking works)</span></label>
+          <div class="seg" role="radiogroup" aria-labelledby="lblEyes">
+            <label><input type="radio" name="demoEyes" value="brown"><span>Brown</span></label>
+            <label><input type="radio" name="demoEyes" value="hazel"><span>Hazel</span></label>
+            <label><input type="radio" name="demoEyes" value="green"><span>Green</span></label>
+            <label><input type="radio" name="demoEyes" value="blue"><span>Blue</span></label>
+            <label><input type="radio" name="demoEyes" value="grey"><span>Grey</span></label>
+            <label><input type="radio" name="demoEyes" value="other"><span>Other</span></label>
+            <label><input type="radio" name="demoEyes" value="prefer not to say"><span>Prefer not to say</span></label>
+          </div></div>
+        <div class="errbox" id="demoErr"></div>
+        <div class="row"><button class="btn ghost" data-panel="p-welcome">Back</button><button class="btn" id="toDevice">Next: computer and camera</button></div>
+      </div>
+
+      <div class="panel" id="p-device">
+        <p class="eyebrow">Set up · 2 of 5</p>
+        <h1>Computer and camera</h1>
+        <p class="hint">Webcam tracking quality depends a lot on the hardware, so we note what you're using. If you're not sure, leave it blank.</p>
+        <div class="field"><label id="lblDevType">What are you using?</label>
+          <div class="seg" role="radiogroup" aria-labelledby="lblDevType">
+            <label><input type="radio" name="devType" value="laptop"><span>Laptop</span></label>
+            <label><input type="radio" name="devType" value="desktop"><span>Desktop or all-in-one</span></label>
+            <label><input type="radio" name="devType" value="other"><span>Something else</span></label>
+          </div></div>
+        <div class="field"><label for="devModel">Make and model of the computer</label>
+          <input id="devModel" class="wide" type="text" placeholder="e.g. MacBook Air M2 (2022), Lenovo ThinkPad T14" autocomplete="off" spellcheck="false"></div>
+        <details class="more findhelp"><summary>How do I find the model?</summary><div id="findHelp"></div></details>
+        <div class="field" style="margin-top:22px"><label id="lblCamType">Which camera will you use?</label>
+          <div class="seg" role="radiogroup" aria-labelledby="lblCamType">
+            <label><input type="radio" name="camType" value="built-in"><span>The built-in camera</span></label>
+            <label><input type="radio" name="camType" value="separate"><span>A separate webcam</span></label>
+          </div></div>
+        <div class="field" id="webcamField" hidden><label for="webcamModel">Make and model of the webcam</label>
+          <input id="webcamModel" class="wide" type="text" placeholder="e.g. Logitech C920" autocomplete="off" spellcheck="false">
+          <div class="hint" style="margin-top:6px">Usually printed on the webcam itself.</div></div>
+        <p class="hint" style="margin-top:18px">Once the camera is on, its name (as your browser reports it) and basic system details (browser, operating system, graphics chip, screen) are also saved with your data.</p>
+        <div class="row"><button class="btn ghost" data-panel="p-demo">Back</button><button class="btn" id="toVision">Next: vision questions</button></div>
+      </div>
+
+      <div class="panel" id="p-vision">
+        <p class="eyebrow">Set up · 3 of 5</p>
+        <h1>Vision questions</h1>
+        <p class="hint">You need to see the dots clearly, but glasses reflect light and can confuse the tracker. Your answers tell you what to do, and are saved with your data. You can skip any question.</p>
+        <div class="field"><label id="lblVisUsual">Do you usually wear glasses or contact lenses?</label>
+          <div class="seg" role="radiogroup" aria-labelledby="lblVisUsual">
+            <label><input type="radio" name="visUsual" value="none"><span>No</span></label>
+            <label><input type="radio" name="visUsual" value="glasses"><span>Glasses</span></label>
+            <label><input type="radio" name="visUsual" value="contact lenses"><span>Contact lenses</span></label>
+            <label><input type="radio" name="visUsual" value="glasses and contact lenses"><span>Both</span></label>
+          </div></div>
+        <div class="field" id="visQWithout" hidden><label id="lblVisWithout">Can you see this screen clearly <b>without</b> your glasses?</label>
+          <div class="seg" role="radiogroup" aria-labelledby="lblVisWithout">
+            <label><input type="radio" name="visWithout" value="yes"><span>Yes</span></label>
+            <label><input type="radio" name="visWithout" value="no"><span>No</span></label>
+          </div></div>
+        <p class="okbox" id="visAdvice" hidden></p>
+        <div class="field" id="visQNow" hidden><label id="lblVisNow">What are you wearing right now, for this session?</label>
+          <div class="seg" role="radiogroup" aria-labelledby="lblVisNow">
+            <label><input type="radio" name="visNow" value="none"><span>Nothing</span></label>
+            <label><input type="radio" name="visNow" value="glasses"><span>Glasses</span></label>
+            <label><input type="radio" name="visNow" value="contact lenses"><span>Contact lenses</span></label>
+          </div></div>
+        <div class="field"><label id="lblVisClear">As you are now, can you see the screen clearly?</label>
+          <div class="seg" role="radiogroup" aria-labelledby="lblVisClear">
+            <label><input type="radio" name="visClear" value="yes"><span>Yes</span></label>
+            <label><input type="radio" name="visClear" value="no"><span>Not quite</span></label>
+          </div></div>
+        <div class="errbox" id="visErr"></div>
+        <div class="row"><button class="btn ghost" data-panel="p-device">Back</button><button class="btn" id="toScreen">Next: measure your screen</button></div>
+      </div>
+
+      <div class="panel" id="p-screen">
+        <p class="eyebrow">Set up · 4 of 5</p>
+        <h1>Measure your screen</h1>
+        <p class="hint">Any bank card or ID card works as a ruler (they're all the same size). This lets us report accuracy in real-world units.</p>
+        <img class="guide" src="card-guide.webp" width="1280" height="594"
+             alt="1. Place the card flat against your screen, touching the glass. 2. Drag the slider (or use − and +) until the grey bar is exactly the same width as your card.">
+        <ol class="numlist guide-text" aria-hidden="true">
+          <li>Place the card <b>flat against your screen</b>, touching the glass.</li>
+          <li>Drag the slider (or use − and +) until the grey bar is <b>exactly the same width</b> as your card.</li>
+        </ol>
+        <div id="cardBox"></div>
+        <div class="slider">
+          <button class="nudge" id="cardMinus" aria-label="Make the bar narrower">−</button>
+          <input id="cardRange" type="range" min="120" max="560" value="300" aria-label="Bar width">
+          <button class="nudge" id="cardPlus" aria-label="Make the bar wider">+</button>
+        </div>
+        <p class="readout" id="cardReadout" aria-live="polite"></p>
+        <p class="hint" id="cardRemembered" style="display:none;margin-top:10px">We kept the width from your last session on this computer. Check it still matches your card.</p>
+        <details class="more"><summary>Not using a standard bank card?</summary>
+          <div class="field" style="margin-top:6px"><label for="cardCm">Width of your card (cm)</label>
+            <input id="cardCm" type="text" value="8.56" inputmode="decimal"></div>
+        </details>
+        <div class="row"><button class="btn ghost" data-panel="p-vision">Back</button><button class="btn" id="toPrep">Next: get set up</button></div>
+      </div>
+
+      <div class="panel" id="p-prep">
+        <p class="eyebrow">Set up · 5 of 5</p>
+        <h1>Set yourself up well</h1>
+        <p class="hint">Webcam eye tracking is only as good as the setup. These five things make the biggest difference:</p>
+        <img class="guide" src="setup-guide.webp" width="995" height="280"
+             alt="A person sitting at a laptop with the webcam at eye level, facing a window so soft daylight falls on their face.">
+        <ol class="numlist">
+          <li><b>Raise your webcam to eye level</b>, pointing straight at your face. Prop your laptop on some books if you need to.</li>
+          <li><b>Light on your face, not behind you.</b> Face a window or lamp; avoid a bright window behind you.</li>
+          <li><b>Glasses off if you can see the screen clearly without them</b>; reflections on the lenses confuse the tracker. If you can’t, keep them on. <b>Contact lenses are fine</b>, so keep them in.</li>
+          <li><b>Sit 50–70 cm from the screen</b>, about an arm’s length, and stay in that position until everything is finished. Keep your head still.</li>
+          <li><b>Close other heavy apps and tabs.</b> The tracker needs the processing power.</li>
+        </ol>
+        <label class="opt"><input type="checkbox" id="optFs" checked><span>Use full screen for the tasks <span class="hint">(recommended, so the dots can reach the edges of the screen)</span></span></label>
+        <details class="more"><summary>Advanced options</summary>
+          <label class="opt"><input type="checkbox" id="optSound" checked><span>Play a soft chime when I move out of position</span></label>
+          <label class="opt"><input type="checkbox" id="optTape"><span>Ask for the viewing distance measured with a tape measure <span class="hint">(needed for reliable results in degrees; off = camera estimate)</span></span></label>
+          <label class="opt" hidden><input type="checkbox" id="optSmooth" disabled><span>Smooth the gaze signal <span class="hint">(used for the quick check and the results shown; raw and smoothed gaze are both saved either way)</span></span></label>
+        </details>
+        <p class="hint" style="margin-top:16px">When you press the button, your browser asks to use the camera. Choose <b>Allow</b>.</p>
+        <div class="row" style="margin-top:12px">
+          <button class="btn ghost" data-panel="p-screen">Back</button>
+          <button class="btn accent" id="startBtn">Turn on camera</button>
+          <span class="status" aria-live="polite"><span class="dot-ind" id="camDot"></span><span id="camMsg">Camera off</span></span>
+        </div>
+        <div class="errbox" id="camErr"></div>
+      </div>
+
+    </div></div>
+  </section>
+
+  <!-- Camera checks help catch setup problems before calibration. They do not prove gaze accuracy. -->
+<!-- 2 · CAMERA CHECK (face position + viewing distance, all from WebGazer's face mesh) -->
+  <section class="stage" id="s-dist">
+    <div class="sheet"><div class="card wide">
+      <p class="eyebrow">Camera check</p>
+      <h1 id="distTitle">Get into position</h1>
+      <p id="distIntro">Sit comfortably, face the screen and hold still. Continue unlocks when your face is found and you've held still for a moment.</p>
+      <img class="guide" id="tapeGuide" hidden src="measure-guide.webp" width="995" height="281" style="max-width:720px;margin:4px 0 0"
+           alt="A tape measure running straight from the webcam to the corner of the eye.">
+      <div class="distgrid">
+        <div>
+          <div class="camslot" id="camSlotDist"></div>
+          <p class="camcap">Mirrored view. The box turns green when your eyes are inside it.</p>
+        </div>
+        <div>
+        <div id="viewChecks">
+          <ul class="checks" aria-live="polite">
+            <li id="ckFace"><span class="ic">1</span><div><div class="t">Looking for your face…</div><div class="s"></div></div></li>
+            <li id="ckCentre"><span class="ic">2</span><div><div class="t">Face in the middle</div><div class="s"></div></div></li>
+            <li id="ckLight"><span class="ic">3</span><div><div class="t">Light on your face</div><div class="s"></div></div></li>
+            <li id="ckDist"><span class="ic">4</span><div><div class="t">Distance from the screen</div><div class="s"></div></div></li>
+            <li id="ckStill"><span class="ic">5</span><div><div class="t">Holding still</div><div class="s"></div></div></li>
+          </ul>
+          <div class="row tight" id="tapeRedoRow" hidden><button class="linkbtn" id="tapeRedo">Change the measured distance</button></div>
+        </div>
+        <div id="viewTape" hidden>
+          <ol class="numlist">
+            <li>Sit <b>50–70 cm from the screen</b> (about an arm’s length), the way you’ll sit for the rest of the session.</li>
+            <li>Hold the end of a tape measure or ruler at the <b>webcam</b> and measure straight to the <b>corner of your eye</b>. It’s easier if someone holds the other end.</li>
+            <li>Type in the number, then <b>stay in that position until the end</b>.</li>
+          </ol>
+          <div class="field" style="margin-top:0"><label for="tapeVal">Webcam to eye</label>
+            <div class="tapein">
+              <input id="tapeVal" type="number" inputmode="decimal" step="0.5" min="10" max="150" autocomplete="off">
+              <div class="seg" role="radiogroup" aria-label="Unit">
+                <label><input type="radio" name="tapeUnit" value="cm"><span>cm</span></label>
+                <label><input type="radio" name="tapeUnit" value="in"><span>inches</span></label>
+              </div>
+            </div></div>
+          <div class="errbox" id="tapeErr"></div>
+          <div class="row tight">
+            <button class="btn" id="tapeUse">Use this distance</button>
+            <button class="btn ghost small" id="tapeBack">Back</button>
+            <button class="linkbtn" id="tapeSkip">I don’t have a tape measure</button>
+          </div>
+        </div>
+        </div>
+      </div>
+      <div class="trouble" id="trouble"><b>Still no face?</b>
+        <ul>
+          <li>Make sure your whole face is in the picture and well lit from the front.</li>
+          <li>If the picture is black, another app (Zoom, Teams, …) may be using the camera. Close it and reload this page.</li>
+          <li>Wrong camera? Choose another one from the camera icon in the address bar, then reload.</li>
+        </ul>
+        <div class="row tight"><button class="btn ghost small" id="reloadBtn">Reload the page</button></div>
+      </div>
+      <div class="staybox" id="stayBox" hidden><b>Now stay where you are until the end.</b>
+        Keep your head still and stay at this distance (50–70 cm) through the calibration and the checks that follow. If you move, the task pauses until you’re back in place.</div>
+      <div class="row"><button class="btn" id="distContinue" disabled>Continue to calibration</button></div>
+    </div></div>
+  </section>
+
+  <!-- These targets give the WebGazer model known positions to learn from. -->
+<!-- 3 · CALIBRATION -->
+  <section class="stage" id="s-cal">
+    <div class="pbar" id="calBar"></div>
+    <div class="hud"><span id="calHud">Follow the dot</span><span class="key">Esc</span><span>stop</span></div>
+  </section>
+
+  <!-- This is the separate task where we check how close predictions are to the target. -->
+<!-- 4 · VALIDATION -->
+  <section class="stage" id="s-val">
+    <div class="pbar" id="valBar"></div>
+    <div class="hud"><span id="valHud">Look at the cross</span><span class="key">Esc</span><span>stop</span></div>
+  </section>
+
+  <!-- 5 · RESULTS -->
+  <section class="stage" id="s-res">
+    <div class="sheet"><div class="card">
+      <p class="eyebrow">Data quality</p>
+      <h1 style="margin-bottom:16px">How well did it track you?</h1>
+      <div class="verdict" id="verdict"><div class="ic" id="verdictIc"></div><div><div class="t" id="verdictT"></div><p id="verdictP"></p></div></div>
+      <div class="metrics" id="metricGrid"></div>
+      <ul class="warnlist" id="resWarn"></ul>
+      <div id="mapWrap"><canvas id="map" width="960" height="600"></canvas></div>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--target)"></span>Target</span>
+        <span><span class="swatch" style="background:var(--gaze)"></span>Mean gaze</span>
+        <span><span class="swatch" style="background:var(--err)"></span>Offset (accuracy)</span>
+      </div>
+      <details class="table"><summary>Per-point details</summary>
+        <table id="ptTable"><thead><tr><th>Point</th><th>Target x,y</th><th>Accuracy</th><th>Precision</th><th>Valid n</th></tr></thead><tbody></tbody></table>
+      </details>
+      <p class="note" id="resNote"></p>
+      <div class="row">
+        <button class="btn" id="toSearch">Next: search task</button>
+        <button class="btn ghost" id="reCalFromRes">Recalibrate</button><button class="btn ghost" id="toExp">Finish task</button>
+      </div>
+      <div class="row tight">
+        <button class="btn ghost small" id="gazeToggle" aria-pressed="false">Show my gaze</button>
+      </div>
+      <div class="group">
+        <p class="gl">Your data</p>
+        <div class="row tight">
+          <button class="btn ghost small" id="dlAll">Download all data</button>
+          <button class="linkbtn" id="dlValidation">Validation CSV</button>
+          <button class="linkbtn" id="dlRaw">Raw samples CSV</button>
+        </div>
+        <div class="sendbox"></div>
+      </div>
+      <p class="cite">WebGazer validation protocol inspired by Brand, Diamond, Thomas &amp; Gilbert-Diamond (2021), <em>Behavior Research Methods, 53</em>(4), 1502–1514. Our pilot uses a 12-point 4×3 grid, 2000 ms displays, 250 ms blank intervals, and excludes the first 300 ms. These parameters are not claimed to be identical to the published protocol. Primary accuracy is mean gaze offset and primary precision is RMS spatial dispersion; sample-level error and successive-point RMS are also exported.
+        Viewing distance: the participant's tape measurement when given; otherwise estimated from the distance between the eyes in WebGazer's face mesh (average adult interpupillary distance, assumed camera field of view).</p>
+    </div></div>
+  </section>
+
+  <!-- 5b · VISUAL SEARCH -->
+  <section class="stage" id="s-search">
+    <div class="searchbar"><span class="tag">Find the letters</span>
+      <span id="searchMsg">Two of the "E"s face the normal way. Click each one.</span>
+      <span class="spacer"></span><span class="tag">Space: skip round · Esc: stop</span></div>
+    <div id="searchArea"></div>
+  </section>
+
+  <!-- Visual search results describe predicted target detection, not proven human fixations. -->
+<!-- 5c · SEARCH RESULTS (ROC) -->
+  <section class="stage" id="s-sres">
+    <div class="sheet"><div class="card">
+      <p class="eyebrow">Fixation identification</p>
+      <h1 style="margin-bottom:14px">Search task results</h1>
+      <p class="hint" id="sresIntro"></p>
+      <div id="rocWrap"><canvas id="roc" width="640" height="640"></canvas></div>
+      <details class="table"><summary>Full table</summary>
+        <table id="rocTable"><thead><tr><th>Min fix. (ms)</th><th>AOI (w×h px)</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th><th>Target detection</th><th>Distractor rejection</th></tr></thead><tbody></tbody></table>
+      </details>
+      <p class="note" id="sresNote"></p>
+      <div class="row">
+        <button class="btn" id="toExp2">Finish task</button>
+        <span class="hint">Each study session includes one 25 trial search task.</span>
+        <button class="btn ghost" id="backRes">Back to accuracy results</button>
+      </div>
+      <div class="group">
+        <p class="gl">Your data</p>
+        <div class="row tight">
+          <button class="btn ghost small" id="dlAll2">Download all data</button>
+          <button class="linkbtn" id="dlSearch">Search results CSV</button>
+        </div>
+        <div class="sendbox"></div>
+      </div>
+      <p class="cite">Visual-search task adapted from Brand et al. (2021): 2 targets and 16 distractors. Known target labels define item-level outcomes; clicks do not establish fixation ground truth;
+        fixations via an Engbert &amp; Kliegl (2003) velocity detector (λ=6, median-based SD); TP/FP/FN/TN scored within a 500 ms
+        item-level true target labels across five AOI sizes and 100/150/275 ms minimum fixation durations. These target-discrimination metrics cannot be interpreted as fixation measurement sensitivity without independent gaze ground truth.</p>
+    </div></div>
+  </section>
+
+  <!-- 6 · EXPERIMENTS -->
+  <section class="stage" id="s-exp">
+    <div class="sheet"><div class="card">
+      <p class="eyebrow">Launcher</p>
+      <h1 style="margin-bottom:8px">Run an experiment</h1>
+      <p class="hint" id="expIntro"></p>
+      <div id="expList"></div>
+      <div class="row">
+        <button class="btn ghost" id="saveAll">Download all data</button>
+        <button class="btn ghost" id="expBack">Back to results</button>
+        <button class="btn" id="finishBtn">Finish task and turn off camera</button>
+      </div>
+      <div class="sendbox"></div>
+    </div></div>
+  </section>
+
+  <!-- Submission only happens after the participant presses the final button. -->
+<!-- 7 · DONE -->
+  <section class="stage" id="s-done">
+    <div class="sheet"><div class="card">
+      <p class="eyebrow">Finished</p>
+      <h1>Ready to submit your study data</h1>
+      <p>The camera is off. Your results are saved as local checkpoints while you decide whether to submit.</p>
+      <button class="btn submit-primary" id="submitStudyData" type="button">SUBMIT STUDY DATA</button>
+      <p class="submission-note">Press the button above to send your session data to the research server. The button shows confirmation only after the server verifies receipt. Submitting is not automatic.</p>
+      <p class="submit-result" id="doneSaved" role="status" aria-live="polite"></p>
+      <div class="row"><button class="btn ghost" id="retryUpload" hidden>Try submitting again</button><button class="btn ghost" id="doneDl">Download a backup</button></div>
+      <div class="sendbox"></div>
+      <p class="hint" style="margin-top:16px">Do not close this tab until you see a confirmed receipt or have saved the local backup. The name field is optional and not used for matching repeat visits.</p>
+    </div></div>
+  </section>
+
+</div>
+
+<div id="gazeDot"></div>
+<div id="camPark"><div id="camDock"></div></div>
+<div id="reposition" role="alertdialog" aria-labelledby="repoTitle"><div class="box">
+  <h2 id="repoTitle">Move back into view</h2>
+  <p class="hint" id="repoMsg"></p>
+  <div class="camslot" id="camSlotRepo"></div>
+  <p class="hint" id="repoLive"></p>
+</div></div>
+<div id="instruct" role="dialog" aria-labelledby="iTitle"><div class="ibox">
+  <p class="eyebrow" id="iEyebrow">Next</p>
+  <h2 id="iTitle"></h2>
+  <div id="iBody"></div>
+  <div class="row" id="iButtons"></div>
+  <p class="hint" id="iKey">Press Enter to start</p>
+</div></div>
+<div id="loading"><div class="lbox">
+  <div class="spinner"></div>
+  <h2 id="loadTitle">Setting up the eye tracker…</h2>
+  <p class="hint" id="loadSub">The first time, this can take 10–20 seconds. Please don't refresh.</p>
+  <div class="camslot" id="camSlotLoad"></div>
+</div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* We try model files hosted on this site first, then fall back to the external source.
+   The model weights themselves are not included in this project ZIP. */
+/* ---- Face-model files ------------------------------------------------------------
+   WebGazer 2.0.1 downloads two small TensorFlow models (BlazeFace + FaceMesh) from
+   tfhub.dev when the page opens. If you put copies in ./models/blazeface/ and
+   ./models/facemesh/ (see models/README.md), they are served from your own site instead and
+   tfhub.dev is only used as a fallback. Nothing to configure. */
+(function(){
+  var MAP=[['https://tfhub.dev/tensorflow/tfjs-model/blazeface/1/default/1/','./models/blazeface/'],
+           ['https://tfhub.dev/mediapipe/tfjs-model/facemesh/1/default/1/','./models/facemesh/']];
+  var nativeFetch=window.fetch.bind(window), useLocal={};
+  window.__modelSource='tfhub.dev';
+  window.fetch=function(input,init){
+    var url=typeof input==='string'?input:(input&&input.url)||'', m=null;
+    for(var i=0;i<MAP.length;i++) if(url.indexOf(MAP[i][0])===0) m=MAP[i];
+    if(!m||useLocal[m[0]]===false||location.protocol==='file:') return nativeFetch(input,init);
+    var local=m[1]+url.slice(m[0].length).split('?')[0];
+    return nativeFetch(local).then(function(r){
+      if(r.ok && (r.headers.get('content-type')||'').indexOf('text/html')<0){ useLocal[m[0]]=true; window.__modelSource='this site (./models)'; return r; }
+      throw new Error('no local copy');
+    }).catch(function(){ if(useLocal[m[0]]===undefined) useLocal[m[0]]=false; return nativeFetch(input,init); });
+  };
+})();
+
+/* Load WebGazer itself. The prediction model comes from this library, not our UI. */
+/* ---- Load WebGazer (local copy first, CDN as fallback) ---- */
+window.__wgReady=(function(){var r;var p=new Promise(function(x){r=x});window.__wgResolve=r;return p})();
+function loadScript(src,onerr){var s=document.createElement('script');s.src=src;
+  s.onload=function(){window.__wgResolve(!!window.webgazer)};s.onerror=onerr;document.head.appendChild(s)}
+loadScript('./webgazer-2.0.1.js',function(){console.warn('[GazeCheck] local webgazer-2.0.1.js not found, trying the CDN');
+  loadScript('https://cdn.jsdelivr.net/npm/webgazer@2.0.1/dist/webgazer.js',function(){console.error('[GazeCheck] WebGazer could not be loaded');window.__wgResolve(false)})});
+</script>
+
+<script src="./quality.js"></script>
+<script src="./gaze_kinematics.js"></script>
+<script src="./deploy-config.js"></script>
+<script src="./upload.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   SETTINGS
+   ============================================================ */
+const EXPERIMENTS = [
+  // { name: "Demo eye-tracking task", url: "https://example.org/my-task/" },
+];
+// These are setup assumptions and screening limits, not measurements from a reference eye tracker.
+const IPD_MM = 63;             // average adult distance between the pupils (mm) - our ruler for viewing distance
+const CAM_FOV_DEG = 55;        // assumed horizontal field of view of the webcam (tune for your cameras)
+const ASK_TAPE = true;          // ask participants to measure webcam-to-eye distance with a tape measure (needed for reliable degrees)
+const TAPE_SKIP_ALLOWED = true; // show "I don't have a tape measure"; skipped sessions are flagged in the results and CSV
+const VISION_REQUIRED = false;  // true = vision questions must be answered before continuing (default: all skippable)
+const SMOOTHING = false;        // default primary outcome is unsmoothed WebGazer gaze         // which gaze drives the check and on-screen results: smoothed (true) or raw (false); both are always saved
+const SMOOTH_ALPHA = 0.35;      // strength when smoothing is on: 1 = none, lower = smoother
+const USE_KALMAN = false;      // WebGazer Kalman smoothing is off in this experiment
+const REGRESSION = 'ridge';    // WebGazer regression: 'ridge' | 'weightedRidge'
+const DIST_TOL = 8;            // cm of drift from the starting distance before a task pauses
+const GRADE = { accDeg:[3,6], precDeg:[3,6], accPx:[110,220], precPx:[110,220] };  // [good, fair] upper limits; above fair = poor
+const DIST_MIN = 50, DIST_MAX = 70;   // cm, webcam to eye: participants must sit in this range (checked on the tape measurement)
+const PASS_MIN_VALID = 75;            // observed callback validity, distinct from time coverage            // % of frames with a gaze estimate needed to pass the check
+const MAX_ATTEMPTS = 3;               // failed calibration checks before "Continue anyway" is offered
+const CHECK_POINTS = [[.5,.5],[.2,.2],[.8,.2],[.2,.8],[.8,.8]];   // quick calibration check before the tasks (same timing as the 12-point task)
+const CAM_W = 400;
+const QUALITY=GazeQuality.CFG;
+// This is the existing saved build label. It is metadata, not the current ZIP name.
+const STUDY_BUILD='webgazer-validation-2.3-manual-submit';
+let activeTaskId='', activeTargetX=null, activeTargetY=null, activeAttempt=0, validationAttempts=[], runInterrupted=false;             // camera preview width (px)
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+const $=s=>document.querySelector(s);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const now=()=>performance.now();
+const mean=a=>a.reduce((s,v)=>s+v,0)/a.length;
+const median=a=>{const s=[...a].sort((p,q)=>p-q);const m=s.length>>1;return s.length?(s.length%2?s[m]:(s[m-1]+s[m])/2):0;};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function px(fx,fy){return [Math.round(fx*innerWidth),Math.round(fy*innerHeight)];}
+
+const stages={setup:$('#s-setup'),dist:$('#s-dist'),cal:$('#s-cal'),val:$('#s-val'),res:$('#s-res'),search:$('#s-search'),sres:$('#s-sres'),exp:$('#s-exp'),done:$('#s-done')};
+const STEP={setup:0,dist:1,cal:2,val:3,res:4,search:4,sres:4,exp:4,done:5};
+const TASKS=new Set(['cal','val','search']);
+let curStage='setup';
+const railItems=[...document.querySelectorAll('#rail li')];
+function show(n){
+  Object.values(stages).forEach(e=>e.classList.remove('on')); stages[n].classList.add('on'); curStage=n;
+  document.body.classList.toggle('task',TASKS.has(n));
+  const k=STEP[n]; railItems.forEach((li,i)=>{ li.classList.toggle('active',i===k); li.classList.toggle('done',i<k);
+    li.querySelector('.n').textContent=i<k?'\u2713':String(i+1); if(i===k) li.setAttribute('aria-current','step'); else li.removeAttribute('aria-current'); });
+  if(n!=='res') setLiveDot(false);
+  const sh=stages[n].querySelector('.sheet'); if(sh) sh.scrollTop=0;
+}
+let toastT=null;
+function toast(msg,ms){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),ms||3800); }
+function instruct(eyebrow,title,bodyHTML,buttons){
+  $('#iEyebrow').textContent=eyebrow; $('#iTitle').textContent=title; $('#iBody').innerHTML=bodyHTML;
+  const row=$('#iButtons'); row.innerHTML=''; let primary=null;
+  buttons.forEach(b=>{ const el=document.createElement('button'); el.className='btn'+(b.primary?'':' ghost'); el.textContent=b.label;
+    el.onclick=async()=>{ $('#instruct').classList.remove('on'); if(b.fs) await enterFs(); b.fn(); };
+    row.appendChild(el); if(b.primary&&!primary) primary=el; });
+  $('#iKey').style.display=primary?'':'none';
+  $('#instruct').classList.add('on');
+  if(document.activeElement&&document.activeElement.blur) document.activeElement.blur();
+  if(primary){ primary.focus();   // Enter presses the focused primary button
+    setTimeout(()=>{ if(instructOpen()&&document.activeElement!==primary) primary.focus(); },30); }
+}
+function instructOpen(){ return $('#instruct').classList.contains('on'); }
+
+/* ---- full screen ---- */
+let fsWanted=true;
+async function enterFs(){
+  if(!fsWanted||!document.fullscreenEnabled||document.fullscreenElement) return;
+  try{ await document.documentElement.requestFullscreen({navigationUI:'hide'}); await sleep(300); }catch(e){}
+}
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const gazeDot=$('#gazeDot');
+let latest=null, liveDot=false, collecting=false, curSamples=[], curNulls=[], aborted=false, runId=0;
+let sx=null, sy=null;                          // gaze used for the check and on-screen results (raw or smoothed, per the setting)
+let ssx=null, ssy=null;                        // smoothed stream, always computed (SMOOTH_ALPHA), so both are recorded
+let emaAlpha=SMOOTHING?SMOOTH_ALPHA:1, kalmanOn=USE_KALMAN, soundOn=true, dispX=null, dispY=null;
+let sessionLog=[], recording=false, phase='setup', t0=0, sessionUnixStart=Date.now(), pid='anon', participantName='', experience='', studyVisit='pilot', unsaved=false, recoveryMode=false, pendingHadFinish=false;
+let pxPerCm=null, distCm=null, distSource='camera estimate', anchorEstCm=null;
+let paused=false, pauseCount=0, calibrated=false, calRuns=0, checkRuns=[], failedChecks=0, passed=false, continuedAnyway=false, valKind='main', calViewport=null, viewportChanged=false;
+let lastSummary=null;
+let searchTrials=[], curTrial=null, searchActive=false, lastSearch=null, searchHasRun=false;
+let trackerOn=false, trackerHooked=false, modelReady=false, modelError=null;
+let camStream=null, camError=null, camFailed=false;
+let lastFaceMs=-1e9, faceInfo=null, liveDistCm=null, lensDistCm=null, faceLuma=null, frameLuma=null, lastLumaMs=0;
+let eyeHist=[];                                  // recent eye gaps (fraction of image width)
+let tapeWanted=ASK_TAPE, tapeState='pending', tape=null, distK=null, tapeOpen=false, anchorLensCm=null, impliedFov=null;
+let vision={usual:'',clearWithout:'',now:'',clearNow:''}, device={type:'',model:'',camType:'',webcam:''}, sysInfo={os:'',browser:'',arch:'',gpu:''}, camCount=null;
+
+function logEvent(ev,x,y,g){ if(!recording)return;
+  const valid=g&&Number.isFinite(g.rx)&&Number.isFinite(g.ry);
+  sessionLog.push({t:Math.round(now()-t0),utcMs:Math.round(sessionUnixStart+now()-t0),phase,ev,x:Number.isFinite(x)?x:null,y:Number.isFinite(y)?y:null,
+    w:innerWidth,h:innerHeight,d:liveDistCm!=null?Math.round(liveDistCm):null,
+    rawX:valid?g.rx:null,rawY:valid?g.ry:null,smX:valid?g.smx:null,smY:valid?g.smy:null,
+    taskId:activeTaskId,attempt:activeAttempt,targetX:activeTargetX,targetY:activeTargetY,
+    webgazerElapsedMs:Number.isFinite(g?.wgElapsedMs)?g.wgElapsedMs:null,
+    faceX:faceInfo?.cx??null,faceY:faceInfo?.cy??null,faceCentered:faceInfo?.centred??null,
+    faceLastSeenAgeMs:faceInfo?.t!=null?Math.round(now()-faceInfo.t):null,
+    faceBrightness:faceLuma,frameBrightness:frameLuma}); }
+// WebGazer sends predicted pixel coordinates here. We keep raw and smoothed values separately.
+function onGaze(d,webgazerElapsedMs){
+  const t=now();
+  const finite=d&&Number.isFinite(d.x)&&Number.isFinite(d.y);
+  const inside=finite&&d.x>=0&&d.x<innerWidth&&d.y>=0&&d.y<innerHeight;
+  if(!inside){
+    const reason=!finite?'gaze_null':'gaze_out_of_bounds';
+    if(collecting)curNulls.push({t,reason});
+    if(recording)logEvent(reason,finite?d.x:null,finite?d.y:null,{wgElapsedMs:webgazerElapsedMs});
+    if(searchActive&&curTrial)curTrial.invalidCallbacks=(curTrial.invalidCallbacks||0)+1;
+    return;
+  }
+  ssx=(ssx==null)?d.x:SMOOTH_ALPHA*d.x+(1-SMOOTH_ALPHA)*ssx;
+  ssy=(ssy==null)?d.y:SMOOTH_ALPHA*d.y+(1-SMOOTH_ALPHA)*ssy;
+  const useSmooth=emaAlpha<1; sx=useSmooth?ssx:d.x; sy=useSmooth?ssy:d.y;
+  const both={rx:d.x,ry:d.y,smx:ssx,smy:ssy,wgElapsedMs:webgazerElapsedMs};
+  latest={x:sx,y:sy};
+  dispX=(dispX==null)?sx:0.35*sx+0.65*dispX; dispY=(dispY==null)?sy:0.35*sy+0.65*dispY;
+  if(liveDot){gazeDot.style.left=dispX+'px';gazeDot.style.top=dispY+'px';}
+  if(recording)logEvent('gaze',sx,sy,both);
+  if(collecting)curSamples.push({t,gx:sx,gy:sy,...both});
+  if(searchActive&&curTrial)curTrial.gaze.push({t,x:sx,y:sy,...both});
+}
+function pxToDeg(distPx){ if(!pxPerCm||!distCm)return null; const cm=distPx/pxPerCm; return 2*Math.atan((cm/2)/distCm)*180/Math.PI; }
+function setLiveDot(on){ liveDot=!!on; gazeDot.style.display=liveDot?'block':'none';
+  const b=$('#gazeToggle'); if(b){ b.textContent=liveDot?'Hide my gaze':'Show my gaze'; b.setAttribute('aria-pressed',liveDot?'true':'false'); } }
+const faceOK=()=>now()-lastFaceMs<500;
+
+/* ============================================================
+   SETUP PANELS
+   ============================================================ */
+function setPanel(id){ document.querySelectorAll('#s-setup .panel').forEach(p=>p.classList.toggle('on',p.id===id));
+  stages.setup.querySelector('.sheet').scrollTop=0; const h=$('#'+id+' h1'); if(h){h.setAttribute('tabindex','-1');h.focus({preventScroll:true});} }
+document.querySelectorAll('[data-panel]').forEach(b=>b.onclick=()=>setPanel(b.dataset.panel));
+$('#toDemo').onclick=async()=>{
+  participantName=$('#participantName').value.trim();
+  experience=radioVal('eyeTrackerExperience');
+  if(!experience){$('#inviteErr').textContent='Please select Yes or No for previous eye tracker experience.';$('#inviteErr').classList.add('on');return;}
+  try {
+    const current=await StudyUpload.start(); // Creates an anonymous capability, not a gaze-data upload; checkpoints remain local.
+    pid=current.session_id; studyVisit=current.visit||'pilot';
+    if(current.needsResume){
+      pendingHadFinish=current.hasFinish;$('#resumeRow').hidden=false;
+      $('#inviteErr').textContent='This browser has a previously saved, unsubmitted session. Submit those records before starting another session. An interrupted session will be marked incomplete.';
+      $('#inviteErr').classList.add('on');return;
+    }
+    $('#resumeRow').hidden=true;$('#inviteErr').classList.remove('on');setPanel('p-demo');
+  } catch(e){
+    $('#inviteErr').textContent=e.message;
+    $('#inviteErr').classList.add('on');
+  }
+};
+$('#resumeSubmission').onclick=async()=>{
+ try{
+  recoveryMode=true;
+  if(!pendingHadFinish)await StudyUpload.enqueue('incomplete_finish',{
+   recovery_reason:'session_interrupted_before_finish',recovered_at:new Date().toISOString(),
+   eye_tracker_experience:experience,participant_details:{optional_name:participantName}},STUDY_BUILD);
+  show('done');$('#submitStudyData').disabled=false;
+  $('#doneSaved').textContent=pendingHadFinish?
+   'Previously completed local data recovered. Press the large button to send them to the research server.':
+   'An incomplete session was recovered. Press the large button to submit it, clearly marked as INCOMPLETE.';
+  renderSend();
+ }catch(e){$('#inviteErr').textContent='Recovery failed: '+e.message;$('#inviteErr').classList.add('on');}
+};
+$('#toDevice').onclick=()=>{ const a=$('#demoAge').value.trim();
+  if(a&&!$('#demoAgePnts').checked&&!(Number.isInteger(+a)&&+a>=1&&+a<=120)){
+    const e=$('#demoErr'); e.innerHTML='<b>Enter your age in whole years, or leave it blank.</b>'; e.classList.add('on'); return; }
+  $('#demoErr').classList.remove('on'); readDemo(); setPanel('p-device'); };
+// demographics: every question optional; "prefer not to say" is recorded separately from a skipped question
+let demo={age:'',sex:'',race:'',raceOther:'',eyes:''};
+// Save optional answers. Blank answers stay blank rather than being guessed.
+function readDemo(){
+  const a=$('#demoAge').value.trim();
+  const race=[...document.querySelectorAll('#demoRace input:checked')].map(i=>i.value);
+  demo={age:$('#demoAgePnts').checked?'prefer not to say':(a?String(parseInt(a,10)):''),
+        sex:radioVal('demoSex'),
+        race:race.filter(v=>v!=='another').concat(race.includes('another')?['another']:[]).join('; '),
+        raceOther:race.includes('another')?$('#demoRaceOther').value.trim():'', eyes:radioVal('demoEyes')}; }
+$('#demoAgePnts').addEventListener('change',e=>{ $('#demoAge').disabled=e.target.checked; if(e.target.checked) $('#demoAge').value=''; });
+document.querySelectorAll('#demoRace input').forEach(c=>c.addEventListener('change',e=>{
+  const all=[...document.querySelectorAll('#demoRace input')];
+  if(e.target.value==='prefer not to say'&&e.target.checked) all.forEach(i=>{ if(i!==e.target) i.checked=false; });
+  else if(e.target.checked) all.find(i=>i.value==='prefer not to say').checked=false;
+  $('#demoRaceOther').hidden=!all.find(i=>i.value==='another').checked; }));
+$('#toVision').onclick=()=>{ readDevice(); try{localStorage.setItem('gazecheck.device',JSON.stringify(device));}catch(e){} setPanel('p-vision'); };
+$('#toScreen').onclick=()=>{ readVision();
+  const missing=!vision.usual||(!$('#visQWithout').hidden&&!vision.clearWithout)||(!$('#visQNow').hidden&&!vision.now)||!vision.clearNow;
+  if(VISION_REQUIRED&&missing){ const e=$('#visErr'); e.innerHTML='<b>Please answer all the questions above.</b>'; e.classList.add('on'); return; }
+  $('#visErr').classList.remove('on'); setPanel('p-screen'); };
+$('#optTape').checked=ASK_TAPE; $('#needTape').hidden=!ASK_TAPE; $('#tapeSkip').hidden=!TAPE_SKIP_ALLOWED;
+$('#needTapeWhat').textContent=TAPE_SKIP_ALLOWED?'and, if you have one, a tape measure or ruler':'and a tape measure or ruler'; $('#optSmooth').checked=SMOOTHING;
+
+// computer and camera questions (remembered on this computer, like the screen size)
+const radioVal=n=>{ const r=document.querySelector(`input[name="${n}"]:checked`); return r?r.value:''; };
+const setRadio=(n,v)=>{ const r=document.querySelector(`input[name="${n}"][value="${v}"]`); if(r) r.checked=true; };
+function readDevice(){ device={type:radioVal('devType'), model:$('#devModel').value.trim(), camType:radioVal('camType'),
+  webcam:radioVal('camType')==='separate'?$('#webcamModel').value.trim():''}; }
+// vision questions: which questions apply, and advice based on the answers
+function readVision(){ const usual=radioVal('visUsual');
+  vision={usual, clearWithout:/glasses/.test(usual)?radioVal('visWithout'):'',
+          now:usual==='none'?'none':radioVal('visNow'), clearNow:radioVal('visClear')}; }
+function syncVision(){
+  readVision(); const u=vision.usual, g=/glasses/.test(u), c=/contact/.test(u);
+  $('#visQWithout').hidden=!g; $('#visQNow').hidden=!u||u==='none'; $('#visErr').classList.remove('on');
+  const tips=[];
+  if(c) tips.push(g?'<b>Contact lenses are the best choice</b> if you have them. Keep them in.':'<b>Contact lenses are fine.</b> Keep them in.');
+  if(g&&vision.clearWithout==='yes') tips.push(c?'If you\u2019re not wearing contacts, <b>take your glasses off</b>: reflections on the lenses confuse the tracker.':'<b>Please take your glasses off</b> for this session: reflections on the lenses confuse the tracker.');
+  if(g&&vision.clearWithout==='no') tips.push('<b>Keep your glasses on.</b> Seeing the dots clearly matters more.');
+  if(vision.clearNow==='no') tips.push(u==='none'
+    ?'<b>You need to see the screen clearly.</b> Try making the screen brighter, or sitting a little closer before you measure your distance.'
+    :'<b>You need to see the screen clearly.</b> Put on your glasses or contact lenses for this session.');
+  $('#visAdvice').innerHTML=tips.join(' '); $('#visAdvice').hidden=!tips.length;
+}
+document.querySelectorAll('#p-vision input[type=radio]').forEach(r=>r.addEventListener('change',syncVision));
+function syncWebcamField(){ $('#webcamField').hidden=radioVal('camType')!=='separate'; }
+document.querySelectorAll('input[name="camType"]').forEach(r=>r.addEventListener('change',syncWebcamField));
+try{ const d=JSON.parse(localStorage.getItem('gazecheck.device')||'null');
+  if(d){ setRadio('devType',d.type); $('#devModel').value=d.model||''; setRadio('camType',d.camType); $('#webcamModel').value=d.webcam||''; } }catch(e){}
+syncWebcamField();
+(function(){
+  const ua=navigator.userAgent, H={
+    mac:'<p><b>Mac:</b> Apple menu (top left) \u2192 <b>About This Mac</b>. Copy the line under the name, e.g. \u201cMacBook Air, 13-inch, M2, 2022\u201d.</p>',
+    win:'<p><b>Windows:</b> press <b>Windows + R</b>, type <span class="mono">msinfo32</span> and press Enter. Copy <b>System Manufacturer</b> and <b>System Model</b>.</p>',
+    cros:'<p><b>Chromebook:</b> the model is on the sticker underneath, or on the box it came in.</p>',
+    linux:'<p><b>Linux:</b> run <span class="mono">hostnamectl</span> in a terminal and copy <b>Hardware Vendor</b> and <b>Hardware Model</b>.</p>'};
+  const os=/CrOS/.test(ua)?'cros':/Mac/.test(ua)?'mac':/Win/.test(ua)?'win':/Linux/.test(ua)?'linux':'';
+  const order=[os,'win','mac','cros','linux'].filter((k,i,a)=>k&&a.indexOf(k)===i);   // this computer's system first, then the rest
+  $('#findHelp').innerHTML=order.map(k=>H[k]).join('')+'<p class="hint">Laptops also usually have the model on a sticker underneath.</p>';
+})();
+
+// system details that need no questions (recorded with the data)
+(async function collectSystem(){
+  const ua=navigator.userAgent;
+  try{ const u=navigator.userAgentData;
+    if(u&&u.getHighEntropyValues){ const h=await u.getHighEntropyValues(['platform','platformVersion','architecture','bitness','fullVersionList']);
+      let os=[h.platform,h.platformVersion].filter(Boolean).join(' ');
+      if(h.platform==='Windows'&&h.platformVersion) os=(parseInt(h.platformVersion,10)>=13?'Windows 11':'Windows 10')+' ('+h.platformVersion+')';
+      sysInfo.os=os; sysInfo.arch=[h.architecture,h.bitness].filter(Boolean).join('-');
+      sysInfo.browser=(h.fullVersionList||[]).filter(b=>!/brand|chromium/i.test(b.brand)).map(b=>b.brand+' '+b.version).join(', '); } }catch(e){}
+  if(!sysInfo.os){ const m=ua.match(/Mac OS X ([\d_]+)/)||[], w=ua.match(/Windows NT ([\d.]+)/)||[], a=ua.match(/Android ([\d.]+)/)||[];
+    sysInfo.os=/CrOS/.test(ua)?'ChromeOS':m[1]?'macOS '+m[1].replace(/_/g,'.'):w[1]?'Windows NT '+w[1]:a[1]?'Android '+a[1]:/iPhone|iPad/.test(ua)?'iOS':/Linux/.test(ua)?'Linux':''; }
+  if(!sysInfo.browser){ for(const [re,n] of [[/Edg\/([\d.]+)/,'Edge'],[/OPR\/([\d.]+)/,'Opera'],[/Firefox\/([\d.]+)/,'Firefox'],[/Chrome\/([\d.]+)/,'Chrome'],[/Version\/([\d.]+).*Safari/,'Safari']]){
+      const m=ua.match(re); if(m){ sysInfo.browser=n+' '+m[1]; break; } } }
+  try{ const c=document.createElement('canvas'), gl=c.getContext('webgl')||c.getContext('experimental-webgl');
+    if(gl){ const x=gl.getExtension('WEBGL_debug_renderer_info'); sysInfo.gpu=String(gl.getParameter(x?x.UNMASKED_RENDERER_WEBGL:gl.RENDERER)||'');
+      const l=gl.getExtension('WEBGL_lose_context'); if(l) l.loseContext(); } }catch(e){}
+})();
+$('#toPrep').onclick=()=>{ try{localStorage.setItem('gazecheck.cardPx',$('#cardRange').value);}catch(e){} setPanel('p-prep'); };
+
+// card ruler
+(function(){
+  const box=$('#cardBox'), rng=$('#cardRange'), cm=$('#cardCm'), out=$('#cardReadout');
+  try{ const v=localStorage.getItem('gazecheck.cardPx'); if(v&&+v>=+rng.min&&+v<=+rng.max){ rng.value=v; $('#cardRemembered').style.display='block'; } }catch(e){}
+  function u(){ box.style.width=rng.value+'px';
+    const c=parseFloat(String(cm.value).replace(',','.'))||8.56, ppc=rng.value/c;
+    const w=screen.width/ppc, h=screen.height/ppc, d=Math.hypot(w,h)/2.54;
+    out.textContent=`That's ${ppc.toFixed(1)} px per cm, so your screen is about ${w.toFixed(0)} × ${h.toFixed(0)} cm (${d.toFixed(1)}\u2033 diagonal). If that sounds wrong, check the card again.`; }
+  rng.addEventListener('input',u); cm.addEventListener('input',u);
+  $('#cardMinus').onclick=()=>{rng.value=+rng.value-1;u();}; $('#cardPlus').onclick=()=>{rng.value=+rng.value+1;u();};
+  u();
+})();
+
+/* ============================================================
+   WEBGAZER HOOKS  (face frames, model state, camera errors)
+   ============================================================ */
+function setModelStatus(state,msg){ $('#modelDot').className='dot-ind '+(state==='ok'?'live':state==='bad'?'bad':'wait'); $('#modelMsg').textContent=msg; }
+function showModelError(){
+  const e=$('#modelErr'); e.classList.add('on');
+  e.innerHTML='<b>The face-tracking model didn\u2019t download.</b><p>WebGazer needs two small model files from tfhub.dev. Check the internet connection or firewall, or host the files on this site (README \u2192 \u201cHosting the model files\u201d). Then reload the page.</p><div class="row tight"><button class="btn ghost small" onclick="location.reload()">Reload the page</button></div>';
+}
+window.__wgReady.then(ok=>{
+  if(!ok){ setModelStatus('bad','Couldn\u2019t load the eye tracker');
+    const e=$('#modelErr'); e.classList.add('on'); e.innerHTML='<b>webgazer-2.0.1.js didn\u2019t load.</b><p>Keep it in the same folder as this page, or allow access to cdn.jsdelivr.net.</p>'; return; }
+  hookTracker();
+});
+// Read face tracking updates for positioning checks without changing WebGazer predictions.
+function hookTracker(){
+  if(trackerHooked) return; trackerHooked=true;
+  const tr=webgazer.getTracker();
+  setModelStatus('wait','Downloading the face-tracking model\u2026');
+  Promise.resolve(tr.model).then(()=>{ modelReady=true; setModelStatus('ok','Eye tracker ready'); },
+    e=>{ modelError=e||new Error('model failed'); setModelStatus('bad','Face-tracking model failed to download'); showModelError(); console.error('[GazeCheck] face model',e); });
+  // every frame WebGazer asks its face tracker for the eyes; we listen in to get the face landmarks
+  const orig=tr.getEyePatches;
+  tr.getEyePatches=async function(canvas,w,h){ const r=await orig.call(this,canvas,w,h); onFaceFrame(r?this.positionsArray:null,canvas,w,h); return r; };
+  // capture the camera stream (to switch it off at the end) and the real error if it fails
+  const md=navigator.mediaDevices;
+  if(md&&md.getUserMedia&&!md.__gc){ const g=md.getUserMedia.bind(md); md.__gc=true;
+    md.getUserMedia=c=>g(c).then(s=>{camStream=s;return s;},e=>{camError=e;throw e;}); }
+}
+
+/* ---- face landmarks → presence, position, lighting, distance ---- */
+const lumaCv=document.createElement('canvas'); lumaCv.width=lumaCv.height=16;
+const lumaCtx=lumaCv.getContext('2d',{willReadFrequently:true});
+function meanLuma(src,x,y,w,h){ try{ lumaCtx.drawImage(src,x,y,w,h,0,0,16,16); const d=lumaCtx.getImageData(0,0,16,16).data; let s=0;
+  for(let i=0;i<d.length;i+=4) s+=0.2126*d[i]+0.7152*d[i+1]+0.0722*d[i+2]; return s/(d.length/4); }catch(e){ return null; } }
+// Face position and distance are estimates based on landmarks and camera assumptions.
+function onFaceFrame(pos,canvas,W,H){
+  if(!pos||pos.length<468||!W) return;
+  const t=now(); lastFaceMs=t;
+  const mid=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2];
+  const R=mid(pos[33],pos[133]), L=mid(pos[362],pos[263]);          // eye centres from the eye corners
+  const ipd=Math.hypot(R[0]-L[0],R[1]-L[1]);
+  if(ipd>3){
+    const gap=ipd/W;                                                   // eye gap as a fraction of image width
+    const wR=Math.hypot(pos[33][0]-pos[133][0],pos[33][1]-pos[133][1]), wL=Math.hypot(pos[362][0]-pos[263][0],pos[362][1]-pos[263][1]);
+    eyeHist.push({t,gap,turn:wL>0?wR/wL:1}); while(eyeHist.length&&t-eyeHist[0].t>3000) eyeHist.shift();
+    const lens=(0.5/Math.tan(CAM_FOV_DEG*Math.PI/360))*IPD_MM/gap/10;  // assumes an average face and a 55° lens
+    lensDistCm=(lensDistCm==null)?lens:lensDistCm+0.15*(lens-lensDistCm);
+    const cm=distK!=null?distK/gap:lens;                                 // after a tape measurement: scaled to the measured distance
+    liveDistCm=(liveDistCm==null)?cm:liveDistCm+0.15*(cm-liveDistCm); }
+  const small=Math.min(W,H)*0.66, bx=(W-small)/2, by=(H-small)/2;    // same central box WebGazer draws
+  const inBox=p=>p[0]>bx&&p[0]<bx+small&&p[1]>by&&p[1]<by+small;
+  faceInfo={cx:(R[0]+L[0])/2/W, cy:(R[1]+L[1])/2/H, centred:inBox(R)&&inBox(L), t};
+  if(t-lastLumaMs>500){ lastLumaMs=t;
+    const x=Math.min(R[0],L[0])-ipd*0.5, y=Math.min(R[1],L[1])-ipd*0.7;
+    faceLuma=meanLuma(canvas,x,y,ipd*2,ipd*1.9); frameLuma=meanLuma(canvas,0,0,W,H); }
+}
+
+/* ---- camera preview: WebGazer's video, face overlay and box live in one movable dock ---- */
+const camDock=$('#camDock');
+async function dockCamera(){
+  for(let i=0;i<100&&!(document.getElementById('webgazerFaceOverlay')&&document.getElementById('webgazerFaceFeedbackBox'));i++) await sleep(50);
+  const v=document.getElementById('webgazerVideoFeed');
+  const vw=(v&&v.videoWidth)||640, vh=(v&&v.videoHeight)||480, h=Math.round(CAM_W*vh/vw);
+  try{ webgazer.setVideoViewerSize(CAM_W,h); }catch(e){}
+  camDock.style.width=CAM_W+'px'; camDock.style.height=h+'px';
+  ['webgazerVideoFeed','webgazerFaceOverlay','webgazerFaceFeedbackBox'].forEach(id=>{const e=document.getElementById(id); if(e) camDock.appendChild(e);});
+  if(v&&v.play) v.play().catch(()=>{});
+}
+function placeCam(slotId){
+  const slot=slotId?document.getElementById(slotId):$('#camPark');
+  if(camDock.parentNode!==slot){ slot.appendChild(camDock); const v=document.getElementById('webgazerVideoFeed'); if(v&&v.paused&&v.play) v.play().catch(()=>{}); }
+}
+function showLoading(title,sub,withCam){ $('#loadTitle').textContent=title; $('#loadSub').textContent=sub; $('#loading').classList.add('on'); if(withCam) placeCam('camSlotLoad'); }
+function hideLoading(){ $('#loading').classList.remove('on'); }
+
+/* ============================================================
+   START: camera + tracker
+   ============================================================ */
+function camFail(title,detail){
+  $('#camDot').className='dot-ind bad'; $('#camMsg').textContent=title;
+  const e=$('#camErr'); e.classList.add('on'); e.innerHTML=`<b>${esc(title)}.</b><p>${detail}</p>`;
+  $('#startBtn').disabled=false; $('#startBtn').textContent='Try again'; hideLoading();
+  if(StudyUpload.status.ready)queueCheckpoint('setup_failure').catch(()=>{});
+}
+function explainCamError(err){
+  const n=err&&err.name;
+  if(n==='NotAllowedError'||n==='SecurityError') return ['Camera access was blocked','Click the camera icon in the address bar, choose <b>Allow</b>, then press <b>Try again</b>. On a Mac, also check System Settings \u2192 Privacy &amp; Security \u2192 Camera.'];
+  if(n==='NotFoundError'||n==='OverconstrainedError') return ['No camera found','Plug in a webcam (or enable the built-in one), then press <b>Try again</b>.'];
+  if(n==='NotReadableError'||n==='AbortError') return ['The camera is busy','Another app (Zoom, Teams, FaceTime, \u2026) may be using it. Close that app, then press <b>Try again</b>.'];
+  return ['The camera didn\u2019t start', esc((err&&err.message)||'Unknown error')+'. Press <b>Try again</b>, or reload the page.'];
+}
+// Get camera access, start WebGazer, and check that predictions can begin.
+async function startTracker(){
+  const btn=$('#startBtn');
+  readSetup();
+  if(!StudyUpload.status.ready)return camFail('Study session not initialized','Return to the first screen and start again.');
+  if(trackerOn){ runDistance(); return; }
+  btn.disabled=true;
+  $('#camErr').classList.remove('on');
+  if(location.protocol==='file:'&&(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)) return camFail('This browser won\u2019t use the camera on a page opened as a file','Open <span class="mono">index.html</span> in Chrome or Edge instead, or run it from a local server (see README).');
+  if(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) return camFail('This page isn\u2019t in a secure context','Open it over <span class="mono">https://</span> or <span class="mono">http://localhost</span> and reload.');
+  $('#camDot').className='dot-ind wait'; $('#camMsg').textContent='Loading the tracker\u2026';
+  const ok=await window.__wgReady; if(!ok||!window.webgazer) return camFail('The eye tracker didn\u2019t load','Keep <span class="mono">webgazer-2.0.1.js</span> in the same folder as this page.');
+  if(modelError) return camFail('The face-tracking model didn\u2019t download','See the message on the first screen, then reload.');
+  hookTracker();
+  try{
+    window.saveDataAcrossSessions=false;      // never load a previous person's calibration
+    window.applyKalmanFilter=kalmanOn;        // WebGazer 2.0.1 reads this global
+    webgazer.setRegression(REGRESSION);
+    webgazer.setGazeListener(onGaze);
+    webgazer.showVideo(true); webgazer.showFaceOverlay(true); webgazer.showFaceFeedbackBox(true); webgazer.showPredictionPoints(false);
+    camStream=null; camError=null; camFailed=false;
+    $('#camMsg').textContent='Waiting for camera permission\u2026';
+    const nativeAlert=window.alert;
+    window.alert=m=>{ if(/only over https/i.test(String(m))) console.warn('[GazeCheck] WebGazer: '+m); else nativeAlert.call(window,m); };
+    try{ webgazer.begin(()=>{ camFailed=true; }); } finally { window.alert=nativeAlert; }
+  }catch(e){ return camFail('The eye tracker didn\u2019t start',esc(e&&e.message||e)); }
+  const permissionStart=now();while(!camStream&&!camFailed&&now()-permissionStart<40000)await sleep(100);
+  if(!camStream&&!camFailed)return camFail('Camera setup timed out','Please verify camera permission, then reload the page before retrying.');
+  if(camFailed){ const [t,d]=explainCamError(camError); return camFail(t,d); }
+  $('#camMsg').textContent='Starting the camera\u2026';
+  for(let i=0;i<120&&!webgazer.isReady();i++) await sleep(100);
+  if(!webgazer.isReady()) return camFail('The camera is on but no picture is arriving','Close other apps that use the camera and reload the page.');
+  trackerOn=true;
+  try{ navigator.mediaDevices.enumerateDevices().then(ds=>{ camCount=ds.filter(d=>d.kind==='videoinput').length; }).catch(()=>{}); }catch(e){}
+  webgazer.removeMouseEventListeners();       // we train only from the calibration dots, never from clicks
+  await dockCamera();
+  t0=now(); sessionUnixStart=Date.now(); sessionLog=[]; recording=true;
+  $('#camDot').className='dot-ind live'; $('#camMsg').textContent='Camera on'; btn.textContent='Continue'; btn.disabled=false;
+  if(!modelReady){
+    showLoading('Loading the face tracker\u2026','The first time, this can take 10\u201320 seconds. Get comfortable in front of the camera meanwhile.',true);
+    const t=now();
+    while(!modelReady&&!modelError&&now()-t<75000){await sleep(200);
+      if(now()-t>25000)$('#loadSub').textContent='Face model loading is slow. Check your connection; the request will time out soon.';}
+    if(!modelReady&&!modelError)modelError=new Error('Model load timeout');
+    hideLoading();
+    if(modelError){ placeCam(null); return camFail('The face-tracking model didn\u2019t download','Check the internet connection or host the model files on this site (see README), then reload.'); }
+  }
+  queueCheckpoint('setup_complete').catch(()=>{});
+  runDistance();
+}
+function readSetup(){
+  participantName=$('#participantName').value.trim(); experience=radioVal('eyeTrackerExperience');
+  const cardPx=parseFloat($('#cardRange').value), cardCm=parseFloat(String($('#cardCm').value).replace(',','.'));
+  pxPerCm=(cardPx>0&&cardCm>0)?cardPx/cardCm:null;
+  emaAlpha=$('#optSmooth').checked?SMOOTH_ALPHA:1; kalmanOn=USE_KALMAN; tapeWanted=$('#optTape').checked; readDevice(); readVision(); readDemo();
+  if(window.webgazer) window.applyKalmanFilter=kalmanOn;
+  soundOn=$('#optSound').checked; fsWanted=$('#optFs').checked;
+}
+$('#startBtn').onclick=startTracker;
+$('#reloadBtn').onclick=()=>location.reload();
+
+/* ============================================================
+   2 · CAMERA CHECK
+   ============================================================ */
+let distTick=null;
+function setCheck(id,state,title,sub){ const li=$('#'+id); li.className=state||''; 
+  li.querySelector('.ic').textContent=state==='ok'?'\u2713':state==='bad'?'!':state==='warn'?'!':String([...li.parentNode.children].indexOf(li)+1);
+  li.querySelector('.t').textContent=title; li.querySelector('.s').textContent=sub||''; }
+let distRecent=[], readySince=null;
+const tapeNeeded=()=>tapeWanted && tapeState==='pending';
+// Keep checking face position and distance until the setup is stable enough to continue.
+function runDistance(){
+  phase='distance'; show('dist'); placeCam('camSlotDist');
+  const cont=$('#distContinue'); cont.disabled=true; distRecent=[]; readySince=null;
+  let noFaceSince=now();
+  $('#trouble').classList.remove('on');
+  showTapeView(false);
+  clearInterval(distTick);
+  distTick=setInterval(()=>{
+    const t=now(), face=faceOK();
+    if(face) noFaceSince=null; else if(noFaceSince==null) noFaceSince=t;
+    $('#trouble').classList.toggle('on', noFaceSince!=null && t-noFaceSince>15000);
+    if(tapeOpen) return;
+    $('#stayBox').hidden=!(tapeWanted&&tapeState!=='pending');
+    $('#tapeRedoRow').hidden=!(tapeState!=='pending');
+    cont.textContent=tapeNeeded()?'Next: measure the distance':'Continue to calibration';
+    if(!face){
+      setCheck('ckFace','bad','Looking for your face\u2026','Sit so your whole face is in the picture.');
+      setCheck('ckCentre','','Face in the middle',''); setCheck('ckLight','','Light on your face','');
+      setCheck('ckDist','','Distance from the screen',''); setCheck('ckStill','','Holding still','');
+      distRecent=[]; readySince=null; cont.disabled=true; return;
+    }
+    setCheck('ckFace','ok','Face found','');
+    const fi=faceInfo||{};
+    if(fi.centred) setCheck('ckCentre','ok','Face in the middle','');
+    else { const tips=[]; if(fi.cx<0.4) tips.push('move a little to your left'); else if(fi.cx>0.6) tips.push('move a little to your right');
+      if(fi.cy<0.38) tips.push('tilt the screen back a little'); else if(fi.cy>0.62) tips.push('tilt the screen forward, or raise it');
+      const s=tips.join(' and '); setCheck('ckCentre','warn','Centre your face in the box', s? s.charAt(0).toUpperCase()+s.slice(1)+'.' : 'Line your eyes up inside the box.'); }
+    if(faceLuma==null) setCheck('ckLight','','Light on your face','');
+    else if(faceLuma<60) setCheck('ckLight','warn','Your face looks dark','Turn on a light in front of you, or face a window.');
+    else if(frameLuma!=null && frameLuma-faceLuma>45) setCheck('ckLight','warn','Bright light behind you','Turn so the window or lamp is in front of you, not behind.');
+    else if(faceLuma>225) setCheck('ckLight','warn','Very bright','Move a little away from the light so your face isn\u2019t washed out.');
+    else setCheck('ckLight','ok','Light on your face','');
+    const d=liveDistCm!=null?Math.round(liveDistCm):null;
+    if(tapeNeeded()){                          // ask for a tape measurement next
+      setCheck('ckDist','','Distance from the screen','Next: measure it with a tape measure.');
+      setCheck('ckStill','','Holding still','');
+      cont.disabled=false; return;
+    }
+    if(tapeState==='done') setCheck('ckDist','ok',`${fmtTape()} from the webcam`,'Your measurement. Stay in this position from now on.');
+    else if(d==null) setCheck('ckDist','','Distance from the screen','Measuring\u2026');
+    else if(d<DIST_MIN) setCheck('ckDist','warn',`About ${d} cm: too close`,`Sit ${DIST_MIN}\u2013${DIST_MAX} cm from the screen. Lean back a little.`);
+    else if(d>DIST_MAX) setCheck('ckDist','warn',`About ${d} cm: too far`,`Sit ${DIST_MIN}\u2013${DIST_MAX} cm from the screen. Come a little closer.`);
+    else setCheck('ckDist','ok',`About ${d} cm from the screen`,`A camera estimate. Stay ${DIST_MIN}\u2013${DIST_MAX} cm from the screen from now on.`);
+    if(lensDistCm!=null){ distRecent.push(lensDistCm); if(distRecent.length>10) distRecent.shift(); }
+    const stable=distRecent.length>=8 && (Math.max(...distRecent)-Math.min(...distRecent)<3);
+    if(!stable){ readySince=null; setCheck('ckStill','','Holding still','Hold your head still for a moment\u2026'); cont.disabled=true; return; }
+    if(readySince==null) readySince=t;
+    const ready=t-readySince>800;
+    setCheck('ckStill',ready?'ok':'',ready?'Holding still':'Holding still\u2026',ready?'Ready when you are.':'');
+    cont.disabled=!ready; $('#stayBox').hidden=!(tapeWanted?tapeState!=='pending':ready);
+  },150);
+}
+$('#distContinue').onclick=()=>{
+  if(tapeNeeded()){ openTape(); return; }
+  clearInterval(distTick);
+  anchorLensCm=lensDistCm!=null?Math.round(lensDistCm):null;       // the camera's own estimate, recorded for comparison
+  const gaps=eyeHist.filter(h=>now()-h.t<=1000).map(h=>h.gap);
+  if(tapeState==='done'&&gaps.length){
+    const gap=median(gaps); distK=tape.cm*gap; liveDistCm=tape.cm;   // live distance now scaled to the measurement
+    impliedFov=2*Math.atan(0.5/(gap*tape.cm/(IPD_MM/10)))*180/Math.PI;  // lens angle this implies for an average face
+    anchorEstCm=Math.round(tape.cm); distCm=tape.cm; distSource='tape measure';
+  } else {
+    distK=null; impliedFov=null; liveDistCm=lensDistCm;
+    anchorEstCm=anchorLensCm; distCm=anchorEstCm; distSource='camera estimate';
+  }
+  placeCam(null); showCalIntro();
+};
+
+/* ---- tape measure: the participant measures webcam-to-eye; the camera then tracks changes from there ---- */
+const INCH_REGIONS=['US','LR','MM'];
+(function(){ const reg=((navigator.language||'').split('-')[1]||'').toUpperCase(); setRadio('tapeUnit',INCH_REGIONS.includes(reg)?'in':'cm'); })();
+let tapeWarned=false;
+const fmtTape=()=>tape?(tape.unit==='in'?`${tape.value} in (${Math.round(tape.cm)} cm)`:`${tape.value} cm`):'';
+function showTapeView(on){
+  tapeOpen=on; $('#viewTape').hidden=!on; $('#tapeGuide').hidden=!on; if(on) $('#stayBox').hidden=true; $('#viewChecks').hidden=on; $('#distContinue').hidden=on;
+  const measured=tapeState==='done';
+  $('#distTitle').textContent=on?'Measure your distance':measured?'Ready for calibration':'Get into position';
+  $('#distIntro').textContent=on?'Please measure how far your eyes are from the webcam. It makes the results in degrees much more accurate, and takes a minute.'
+    :measured?'Your distance is measured. From now on, keep your head still and stay at this distance.'
+    :'Sit comfortably, face the screen and hold still. Continue unlocks when your face is found and you\u2019ve held still for a moment.';
+}
+function openTape(){
+  tapeWarned=false; $('#tapeErr').classList.remove('on'); $('#tapeUse').textContent='Use this distance';
+  if(tape){ $('#tapeVal').value=tape.value; setRadio('tapeUnit',tape.unit); }
+  showTapeView(true); const h=$('#distTitle'); h.setAttribute('tabindex','-1'); h.focus({preventScroll:true});
+}
+function closeTape(){ showTapeView(false); distRecent=[]; readySince=null; }
+function tapeError(html){ const e=$('#tapeErr'); e.innerHTML=html; e.classList.add('on'); }
+$('#tapeVal').addEventListener('input',()=>{ tapeWarned=false; $('#tapeErr').classList.remove('on'); $('#tapeUse').textContent='Use this distance'; });
+document.querySelectorAll('input[name="tapeUnit"]').forEach(r=>r.addEventListener('change',()=>$('#tapeVal').dispatchEvent(new Event('input'))));
+$('#tapeVal').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); $('#tapeUse').click(); } });
+$('#tapeUse').onclick=()=>{
+  const unit=radioVal('tapeUnit')||'cm', value=parseFloat(String($('#tapeVal').value).replace(',','.'));
+  const cm=unit==='in'?value*2.54:value;
+  if(!(cm>=25&&cm<=150)){ tapeError(unit==='in'?'<b>Enter a distance between 10 and 59 inches.</b>':'<b>Enter a distance between 25 and 150 cm.</b>'); return; }
+  if(cm<DIST_MIN||cm>DIST_MAX){ tapeError(`<b>You\u2019re about ${Math.round(cm)} cm from the webcam. Please sit ${DIST_MIN}\u2013${DIST_MAX} cm away</b> (${Math.round(DIST_MIN/2.54)}\u2013${Math.round(DIST_MAX/2.54)} inches, about an arm\u2019s length), then measure again.`); return; }
+  const est=lensDistCm;                                   // catch unit mix-ups (inches typed as cm, etc.)
+  if(!tapeWarned && est && (cm/est<0.55||cm/est>1.8)){ tapeWarned=true;
+    tapeError(`<b>That\u2019s quite different from the camera\u2019s estimate (about ${Math.round(est)} cm).</b><p>Check the number and the unit. If it\u2019s right, press the button again.</p>`);
+    $('#tapeUse').textContent='Use it anyway'; return; }
+  tape={value:Math.round(value*10)/10, unit, cm, differs:tapeWarned, lensAtEntry:est!=null?Math.round(est):null};
+  tapeState='done'; closeTape(); toast(`Using ${fmtTape()}. Now stay where you are until the end.`);
+};
+$('#tapeBack').onclick=closeTape;
+$('#tapeSkip').onclick=()=>{ tapeState='skipped'; tape=null; closeTape(); toast('No problem. The camera will estimate the distance instead.'); };
+$('#tapeRedo').onclick=openTape;
+
+/* ============================================================
+   POSITION WATCHDOG — pauses a task while the face is lost or the person has moved
+   ============================================================ */
+function chime(ac){                      // soft two-note chime: sine tones with a gentle fade, not a buzzer
+  const t=ac.currentTime;
+  [[523.25,0],[392.0,0.22]].forEach(([f,dt])=>{ const o=ac.createOscillator(), g=ac.createGain();
+    o.type='sine'; o.frequency.value=f;
+    g.gain.setValueAtTime(0.0001,t+dt); g.gain.exponentialRampToValueAtTime(0.03,t+dt+0.04); g.gain.exponentialRampToValueAtTime(0.0001,t+dt+0.7);
+    o.connect(g); g.connect(ac.destination); o.start(t+dt); o.stop(t+dt+0.75); });
+}
+let alertTimer=null;
+function startAlert(){ if(!soundOn||alertTimer) return;
+  try{ if(!window.__ac) window.__ac=new (window.AudioContext||window.webkitAudioContext)();
+    const ac=window.__ac; if(ac.state==='suspended') ac.resume();
+    chime(ac); alertTimer=setInterval(()=>chime(ac),3000);   // once when the task pauses, then every 3 s
+  }catch(e){} }
+function stopAlert(){ clearInterval(alertTimer); alertTimer=null; }
+let pauseWhy=null, driftSince=null, okSince=null;
+function beginPause(why){ paused=true; pauseCount++; pauseWhy=why; okSince=null;
+  placeCam('camSlotRepo'); $('#reposition').classList.add('on'); startAlert(); logEvent('pause',0,0); updatePauseText(); }
+function endPause(){ if(!paused) return; paused=false; pauseWhy=null; driftSince=null;
+  $('#reposition').classList.remove('on'); placeCam(null); stopAlert(); logEvent('resume',0,0); }
+function updatePauseText(){
+  const d=liveDistCm!=null?Math.round(liveDistCm):null;
+  if(!faceOK()){ $('#repoTitle').textContent='Move back into view';
+    $('#repoMsg').textContent='The camera lost your face. Look at the screen with your eyes inside the box. The task carries on by itself.'; }
+  else if(anchorEstCm!=null && d!=null && Math.abs(d-anchorEstCm)>DIST_TOL-2){
+    const closer=d<anchorEstCm; $('#repoTitle').textContent=closer?'You\u2019ve moved closer':'You\u2019ve moved back';
+    $('#repoMsg').textContent=(closer?'Sit back':'Come closer')+` to about ${anchorEstCm} cm, where you calibrated. The task carries on by itself.`; }
+  else { $('#repoTitle').textContent='Hold still\u2026'; $('#repoMsg').textContent='That\u2019s it. Carrying on in a moment.'; }
+  $('#repoLive').textContent=!faceOK()?'Looking for your face\u2026':(d!=null&&anchorEstCm!=null?`Now about ${d} cm \u00b7 target ${anchorEstCm} cm`:'');
+}
+setInterval(()=>{
+  const active=trackerOn && recording && (curStage==='cal'||curStage==='val'||curStage==='search') && !aborted && !instructOpen();
+  if(!active){ if(paused) endPause(); driftSince=null; return; }
+  const t=now(), lost=t-lastFaceMs>1500;
+  const drift=(anchorEstCm!=null&&liveDistCm!=null)?liveDistCm-anchorEstCm:0;
+  if(Math.abs(drift)>DIST_TOL){ if(driftSince==null) driftSince=t; } else driftSince=null;
+  if(!paused){ if(lost||(driftSince!=null&&t-driftSince>1500)) beginPause(lost?'lost':'drift'); return; }
+  updatePauseText();
+  const good=faceOK() && Math.abs(drift)<=DIST_TOL-2;
+  if(good){ if(okSince==null) okSince=t; if(t-okSince>700) endPause(); } else okSince=null;
+},250);
+async function gate(){ if(!paused) return false; while(paused&&!aborted) await sleep(120); return true; }   // true = we waited
+
+/* ============================================================
+   3 · CALIBRATION (the dot moves by itself; nothing to click)
+   ============================================================ */
+const CAL=[[.08,.08],[.5,.08],[.92,.08],[.08,.5],[.5,.5],[.92,.5],[.08,.92],[.5,.92],[.92,.92],[.3,.3],[.7,.3],[.3,.7],[.7,.7]];
+const CAL_MS=2000, CAL_SETTLE=300, CAL_SAMPLES=40, RESUME_SETTLE=700;   // 40 snapshots per dot, 520 in all (WebGazer keeps up to 700)
+function hud(which,msg,frac){ $('#'+which+'Hud').textContent=msg; $('#'+which+'Bar').style.width=Math.round(frac*100)+'%'; }
+function clearStage(st){ st.querySelectorAll('.dot,.ring,.vtarget,.count').forEach(e=>e.remove()); }
+async function countdown(st,my,label){
+  const c=document.createElement('div'); c.className='count'; st.appendChild(c);
+  for(const n of [3,2,1]){ if(my!==runId) break; c.innerHTML=`${n}<small>${label}</small>`; await sleep(650); }
+  c.remove();
+}
+function showCalIntro(){
+  phase='instructions';
+  instruct('Step 3 of 5','Follow the dot',
+    `<p>A dot appears in ${CAL.length} places, one after another. Keep your eyes on it until it moves on. It moves by itself, so there\u2019s nothing to click. This will take about 30 seconds.</p><p class="hint">Stay where you are: keep your head still and at the same distance. Press Esc if you need to stop.</p>`,
+    [{label:'Start calibration',primary:true,fs:true,fn:runCalibration},{label:'Back to camera check',fn:runDistance}]);
+}
+// Show calibration targets and send their known positions to WebGazer for learning.
+async function runCalibration(){
+  aborted=false; const my=++runId; const stop=()=>aborted||my!==runId;
+  phase='calibrate'; show('cal'); placeCam(null); setLiveDot(false);
+  passed=false;continuedAnyway=false;lastSummary=null;lastSearch=null;
+  if(!searchHasRun)searchTrials=[];
+  ssx=null;ssy=null;sx=null;sy=null;dispX=null;dispY=null;
+  const st=stages.cal; clearStage(st);
+  webgazer.removeMouseEventListeners(); await webgazer.clearData(); calibrated=false;
+  calViewport={w:innerWidth,h:innerHeight}; viewportChanged=false;
+  hud('cal','Get ready',0); await countdown(st,my,'Look at the dot'); if(stop()) return;
+  const ns='http://www.w3.org/2000/svg';
+  for(let i=0;i<CAL.length;i++){
+    await gate(); if(stop()) return;
+    const [x,y]=px(CAL[i][0],CAL[i][1]);
+    const dot=document.createElement('div'); dot.className='dot'; dot.style.left=x+'px'; dot.style.top=y+'px';
+    const svg=document.createElementNS(ns,'svg'); svg.setAttribute('class','ring'); svg.setAttribute('viewBox','0 0 52 52'); svg.style.left=x+'px'; svg.style.top=y+'px';
+    const c=document.createElementNS(ns,'circle'); c.setAttribute('cx','26'); c.setAttribute('cy','26'); c.setAttribute('r','24'); svg.appendChild(c);
+    st.appendChild(dot); st.appendChild(svg);
+    const ring=()=>{ c.style.transition='none'; c.style.strokeDashoffset='151'; void c.getBoundingClientRect();
+      c.style.transition=`stroke-dashoffset ${CAL_MS-CAL_SETTLE}ms linear`; c.style.strokeDashoffset='0'; };
+    activeTaskId=`cal_${i+1}`;activeTargetX=x;activeTargetY=y;activeAttempt=1;
+    hud('cal',`Point ${i+1} of ${CAL.length}`,i/CAL.length); logEvent('cal_target',x,y);
+    await sleep(CAL_SETTLE); ring();
+    let k=0; const step=(CAL_MS-CAL_SETTLE)/CAL_SAMPLES;
+    while(k<CAL_SAMPLES){
+      if(stop()) return;
+      if(await gate()){ if(stop()) return; await sleep(RESUME_SETTLE); ring(); }
+      if(faceOK()){ webgazer.recordScreenPosition(x,y,'click'); k++; }
+      await sleep(step);
+    }
+    dot.classList.add('small'); await sleep(120); dot.remove(); svg.remove();
+  }
+  if(stop()) return;
+  activeTaskId='';activeTargetX=null;activeTargetY=null;activeAttempt=0;
+  hud('cal','Done',1); calibrated=true; calRuns++; passed=false; logEvent('cal_done',0,0);
+  showCheckIntro();
+}
+
+/* ============================================================
+   4 · VALIDATION (Brand-inspired adaptation, not exact replication)
+   ============================================================ */
+const V_COLS=[.10,.3667,.6333,.90], V_ROWS=[.12,.50,.88];
+// Explicit prototype timings; verify against Brand full methods before claiming close replication.
+// Do not treat the target transition as settled gaze. Primary analysis starts at 300ms.
+const DWELL=2000, ITI=250, PRUNE=QUALITY.analysisStartMs; // pilot adaptation; not claimed to replicate Brand timings
+const FIND_MS=0;      // optional extra time before recording starts (not in Brand); 0 = Brand's timing
+function showCheckIntro(){
+  phase='instructions';
+  instruct('Step 3 of 5','Quick calibration check',
+    `<p>Before the tasks, a cross appears in ${CHECK_POINTS.length} places to check the calibration. Look at each one until it moves. About 12 seconds.</p><p class="hint">If the calibration isn\u2019t accurate enough, you\u2019ll recalibrate before going on. Stay where you are and keep your head still.</p>`,
+    [{label:'Start the quick check',primary:true,fs:true,fn:()=>runValidation('check')}]);
+}
+// A calibration check looks at every point, not just the average error.
+function checkOutcome(results,st){
+  const quality=GazeQuality.screenCheck(results.map(r=>({
+    usable:r.usable, reasons:r.reasons||[], accuracyMeanPx:r.accPx,
+    accuracyDeg:r.accPx!=null&&distSource==='tape measure'?pxToDeg(r.accPx):null
+  })),{minUsablePoints:CHECK_POINTS.length});
+  const ok=results.filter(r=>r.usable);
+  const accPx=ok.length?mean(ok.map(r=>r.accPx)):null, precPx=ok.length?mean(ok.map(r=>r.precPx)):null;
+  const accDeg=accPx!=null?pxToDeg(accPx):null, precDeg=precPx!=null?pxToDeg(precPx):null;
+  const validity=(st.nGot+st.nNull)>0?100*st.nGot/(st.nGot+st.nNull):0;
+  const pass=quality.pass && validity>=PASS_MIN_VALID && !viewportChanged && !st.interruptedN;
+  checkRuns.push({accPx,accDeg,precPx,precDeg,validity,quality,pass,points:results});
+  queueCheckpoint('calibration_check').catch(()=>{});
+  const shown=accDeg!=null?`${accDeg.toFixed(1)}°`:accPx!=null?`${Math.round(accPx)} px`:'no gaze data';
+  phase='instructions';
+  if(pass){ passed=true; continuedAnyway=false; showValIntro(`Calibration check passed (average error ${shown}, worst ${quality.maxError?.toFixed(1)} ${quality.unit}).`); return; }
+  passed=false; failedChecks++;
+  const why=viewportChanged?'The window changed size after calibration.':
+     st.interruptedN?'One or more points were interrupted.':validity<PASS_MIN_VALID?'Too many invalid callbacks.':
+     `Quality requirements not met: ${quality.reasons.join(', ')}. Mean error: ${shown}.`;
+  const tips='<p class="hint">Before trying again: sit 50–70 cm from the screen, get more light on your face, raise the camera to eye level, and keep your head still. Incomplete or interrupted points cannot pass.</p>';
+  if(failedChecks<MAX_ATTEMPTS){
+    instruct('Step 3 of 5','Recalibration needed',`<p>${esc(why)}</p>${tips}`,
+      [{label:'Recalibrate',primary:true,fs:true,fn:runCalibration},{label:'Back to camera check',fn:runDistance}]);
+  } else {
+    instruct('Step 3 of 5',`Quality check failed after ${failedChecks} tries`,
+      `<p>${esc(why)}</p><p>You may continue to the accuracy measurement to document a failure, but the search assessment will be locked until a calibration passes. This session remains flagged as a screen failure.</p>${tips}`,
+      [{label:'Recalibrate',primary:true,fs:true,fn:runCalibration},{label:'Measure quality anyway',fs:true,fn:()=>{continuedAnyway=true;showValIntro('');}},{label:'Back to camera check',fn:runDistance}]);
+  }
+}
+function showValIntro(passedMsg){
+  if(!passed&&!continuedAnyway){ showCheckIntro(); return; }
+  phase='instructions';
+  instruct('Step 4 of 5','Accuracy task',
+    (passedMsg?`<p class="okbox" style="margin:0 0 12px">\u2713 ${esc(passedMsg)}</p>`:'')+'<p>A cross appears in 12 places, one at a time. When it appears, find it and <b>keep looking at its centre</b> until it moves. Don\u2019t click anything. About 30 seconds.</p><p class="hint">This part measures how accurate the tracking is. Stay where you are and keep your head still.</p>',
+    [{label:'Start the accuracy task',primary:true,fs:true,fn:()=>runValidation('main')},{label:'Recalibrate first',fn:showCalIntro}]);
+}
+async function dwell(){
+  const pc=pauseCount, tOn=now();
+  curSamples=[];curNulls=[];collecting=true;logEvent('val_record',activeTargetX,activeTargetY);
+  while(now()-tOn<DWELL){
+    await sleep(Math.max(1,Math.min(35,DWELL-(now()-tOn))));
+    if(pauseCount!==pc||aborted||runInterrupted)break;
+  }
+  collecting=false;
+  return {tOn,samples:curSamples.slice(),nulls:curNulls.slice(),
+     interrupted:pauseCount!==pc||aborted||runInterrupted, elapsedMs:now()-tOn};
+}
+// Collect a new set of gaze samples at known targets to check prediction quality.
+async function runValidation(kind){
+  kind=kind==='check'?'check':'main'; valKind=kind;
+  if(!calibrated){showCalIntro();return;}
+  if(kind==='main'&&!passed&&!continuedAnyway){showCheckIntro();return;}
+  aborted=false;runInterrupted=false;const my=++runId;const stop=()=>aborted||my!==runId;
+  phase=kind==='check'?'calibration_check':'validate'; show('val');placeCam(null);setLiveDot(false);
+  webgazer.removeMouseEventListeners();
+  if(calViewport&&(innerWidth!==calViewport.w||innerHeight!==calViewport.h))viewportChanged=true;
+  const st=stages.val;clearStage(st);
+  const points=[];if(kind==='check')CHECK_POINTS.forEach(p=>points.push(p.slice()));
+  else V_ROWS.forEach(fy=>V_COLS.forEach(fx=>points.push([fx,fy])));
+  for(let i=points.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[points[i],points[j]]=[points[j],points[i]];}
+  hud('val','Get ready',0);await countdown(st,my,'Look at the cross');if(stop())return;
+  const results=[],resultsRaw=[],resultsSm=[],intervals=[];let nGot=0,nNull=0,interruptedN=0;
+  const pc0=pauseCount;
+  for(let i=0;i<points.length;i++){
+    const [x,y]=px(points[i][0],points[i][1]);let r=null,tries=0;
+    activeTaskId=`${kind}_${i+1}`;activeTargetX=x;activeTargetY=y;
+    do {
+      if(await gate()){if(stop())return;await sleep(RESUME_SETTLE);}
+      if(stop())return;
+      runInterrupted=false;activeAttempt=++tries;
+      st.querySelectorAll('.vtarget').forEach(e=>e.remove());
+      const dot=document.createElement('div');dot.className='vtarget';dot.style.left=x+'px';dot.style.top=y+'px';dot.innerHTML='<i></i><span></span>';st.appendChild(dot);
+      hud('val',`Point ${i+1} of ${points.length}`,i/points.length);logEvent('val_target',x,y);
+      r=await dwell();
+      validationAttempts.push({kind,point:i+1,attempt:tries,targetX:x,targetY:y,
+         interrupted:r.interrupted,elapsedMs:r.elapsedMs,callbacksValid:r.samples.length,callbacksInvalid:r.nulls.length});
+      st.querySelectorAll('.vtarget').forEach(e=>e.remove());
+    } while(r.interrupted&&tries<3&&!stop());
+    if(stop())return;
+    if(r.interrupted)interruptedN++;
+    if(!r.interrupted&&tries>1)logEvent('point_recovered_after_pause',x,y);
+    const kept=r.interrupted?[]:r.samples.filter(s=>s.t-r.tOn>=PRUNE&&s.t-r.tOn<DWELL);
+    const invalid=r.interrupted?[]:r.nulls.filter(n=>n.t-r.tOn>=PRUNE&&n.t-r.tOn<DWELL);
+    for(let k=1;k<kept.length;k++)intervals.push(kept[k].t-kept[k-1].t);
+    nGot+=kept.length;nNull+=invalid.length;
+    const measured=GazeQuality.measure(kept.map(s=>({t:s.t-r.tOn,x:s.gx,y:s.gy})),{x,y},
+         {analysisStartMs:PRUNE,analysisEndMs:DWELL});
+    if(r.interrupted){measured.usable=false;measured.reasons.push('interrupted_after_retries');}
+    if(viewportChanged){measured.usable=false;measured.reasons.push('viewport_changed');}
+    const stats=pointStats(i+1,x,y,kept);Object.assign(stats,{
+      usable:measured.usable,reasons:measured.reasons,coveragePct:measured.coveragePct,
+      maxGapMs:measured.maxGapMs,callbackRateHz:measured.callbackRateHz,
+      meanSampleErrorPx:measured.meanSampleErrorPx,rmsePx:measured.rmsePx,
+      precisionSuccessivePx:measured.precisionRmsSuccessivePx,
+      invalidCallbacks:invalid.length,attempts:tries,interrupted:r.interrupted
+    });
+    results.push(stats);
+    const rawPoint=pointStats(i+1,x,y,kept.map(p=>({t:p.t,gx:p.rx,gy:p.ry})));
+    const smPoint=pointStats(i+1,x,y,kept.map(p=>({t:p.t,gx:p.smx,gy:p.smy})));
+    rawPoint.usable=measured.usable;smPoint.usable=measured.usable;
+    resultsRaw.push(rawPoint);resultsSm.push(smPoint);
+    await sleep(ITI);
+  }
+  activeTaskId='';activeTargetX=null;activeTargetY=null;activeAttempt=0;
+  if(stop())return;
+  hud('val','Done',1);logEvent(kind==='check'?'check_done':'val_done',0,0);
+  const data={intervals,nGot,nNull,interruptedN,pauses:pauseCount-pc0,resultsRaw,resultsSm};
+  if(kind==='check'){checkOutcome(results,data);return;}
+  computeResults(results,data);
+}
+function streamSummary(rs){ const ok=rs.filter(r=>r.usable!==false&&r.accPx!=null), m=k=>ok.length?mean(ok.map(r=>r[k])):null, D=v=>v!=null?pxToDeg(v):null;
+  const o={accPx:m('accPx'),precPx:m('precPx'),accX:m('accX'),accY:m('accY'),precX:m('precX'),precY:m('precY')};
+  Object.keys(o).forEach(k=>{ o[k+'Deg']=D(o[k]); }); return o; }
+// Keep both error and missing-data information for each individual target.
+function pointStats(i,x,y,s){
+  if(!s.length) return {i,x,y,n:0,accPx:null,precPx:null,mgx:null,mgy:null,accX:null,accY:null,precX:null,precY:null};
+  const gx=s.map(p=>p.gx),gy=s.map(p=>p.gy),mgx=mean(gx),mgy=mean(gy);
+  const vx=mean(gx.map(v=>(v-mgx)**2)), vy=mean(gy.map(v=>(v-mgy)**2));
+  return {i,x,y,n:s.length,mgx,mgy,
+    accPx:Math.hypot(mgx-x,mgy-y), precPx:Math.sqrt(vx+vy),        // combined: offset of the mean, RMS spread around it
+    accX:Math.abs(mgx-x), accY:Math.abs(mgy-y),                      // horizontal / vertical offset of the mean
+    precX:Math.sqrt(vx), precY:Math.sqrt(vy)};                       // horizontal / vertical RMS spread around the mean
+}
+
+/* ---- stopping a task: Esc, leaving full screen, switching tabs ---- */
+function abortTask(reason){
+  if(!TASKS.has(curStage)||aborted) return;
+  const where=curStage; aborted=true; runId++; collecting=false; searchActive=false;
+  logEvent('participant_task_abort',null,null);
+  validationAttempts.push({kind:where+'_abort',point:null,attempt:activeAttempt,interrupted:true,elapsedMs:null,callbacksValid:null,callbacksInvalid:null});
+  queueCheckpoint('task_aborted').catch(()=>{});
+  endPause(); stopAlert();
+  clearStage(stages.cal); clearStage(stages.val);
+  if(where==='search'){ $('#searchArea').innerHTML=''; show(lastSummary?'res':'dist'); toast((reason||'Search task stopped')+'. Nothing from it was scored.'); return; }
+  const btns=[];
+  if(where==='val'&&calibrated) btns.push({label:valKind==='check'?'Restart the quick check':'Restart the accuracy task',primary:true,fs:true,fn:()=>runValidation(valKind)});
+  btns.push({label:where==='cal'||!calibrated?'Restart calibration':'Recalibrate',primary:!btns.length,fs:true,fn:runCalibration});
+  btns.push({label:'Back to camera check',fn:runDistance});
+  phase='instructions';
+  instruct('Stopped',where==='cal'?'Calibration stopped':'Check stopped',`<p>${esc(reason||'You stopped the task')}. Choose how to carry on.</p>`,btns);
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&(curStage==='cal'||curStage==='val')&&!instructOpen()) abortTask('You pressed Esc'); });
+document.addEventListener('fullscreenchange',()=>{ if(!document.fullscreenElement&&fsWanted&&TASKS.has(curStage)&&!instructOpen()) abortTask('Full screen was closed'); });
+document.addEventListener('visibilitychange',()=>{ if(document.hidden&&TASKS.has(curStage)&&!instructOpen()) abortTask('You switched to another tab or window'); });
+addEventListener('resize',()=>{ if(calibrated&&calViewport&&(innerWidth!==calViewport.w||innerHeight!==calViewport.h)&&(curStage==='val'||curStage==='cal'||curStage==='search')){viewportChanged=true;runInterrupted=true; if(curStage==='search')abortTask('Screen dimensions changed after calibration');} });
+
+/* ============================================================
+   5 · RESULTS
+   ============================================================ */
+function xyLine(x,y,stacked){ if(x==null) return '';
+  const d=v=>{ const g=pxToDeg(v); return g!=null?` (${g.toFixed(2)}\u00b0)`:''; };
+  const e=v=>{ const g=pxToDeg(v); return g!=null?` \u00b7 ${g.toFixed(2)}\u00b0`:''; };
+  return stacked?`<span title="horizontal">x ${x.toFixed(0)} px${e(x)}</span><br><span title="vertical">y ${y.toFixed(0)} px${e(y)}</span>`
+                :`x ${x.toFixed(0)} px${d(x)} \u00b7 y ${y.toFixed(0)} px${d(y)}`; }
+function grade(v,[g,o]){ if(v==null)return['\u2014','g-warn',1]; if(v<=g)return['good','g-good',0]; if(v<=o)return['fair','g-warn',1]; return['poor','g-bad',2]; }
+// Summaries exclude unusable points but we still retain their records.
+function computeResults(results,st){
+  phase='results'; unsaved=true;
+  const ok=results.filter(r=>r.usable && r.accPx!=null);
+  const accPx=ok.length?mean(ok.map(r=>r.accPx)):null, precPx=ok.length?mean(ok.map(r=>r.precPx)):null;
+  const accDeg=accPx!=null?pxToDeg(accPx):null, precDeg=precPx!=null?pxToDeg(precPx):null;
+  const avg=k=>ok.length?mean(ok.map(r=>r[k])):null, D=v=>v!=null?pxToDeg(v):null;
+  const ax={accX:avg('accX'),accY:avg('accY'),precX:avg('precX'),precY:avg('precY')};
+  ax.accXY=ax.accX!=null?(ax.accX+ax.accY)/2:null; ax.precXY=ax.precX!=null?(ax.precX+ax.precY)/2:null;   // Brand-style: averaged over x and y
+  Object.keys(ax).forEach(k=>{ ax[k+'Deg']=D(ax[k]); });
+  let hz=null,im=null,isd=null;
+  if(st.intervals.length>2){ im=mean(st.intervals); isd=Math.sqrt(mean(st.intervals.map(v=>(v-im)**2))); hz=1000/im; }
+  const validity=(st.nGot+st.nNull)>0?100*st.nGot/(st.nGot+st.nNull):null;
+  const coverage=mean(results.map(r=>r.coveragePct||0));
+  const screens=GazeQuality.screenCheck(results.map(r=>({usable:r.usable,reasons:r.reasons,accuracyMeanPx:r.accPx,accuracyDeg:r.accPx!=null&&distSource==='tape measure'?pxToDeg(r.accPx):null})),{minUsablePoints:results.length});
+  if(validity==null||validity<PASS_MIN_VALID){screens.pass=false;screens.reasons.push('insufficient_callback_validity');}
+  if(st.interruptedN>0){screens.pass=false;screens.reasons.push('interrupted_validation_point');}
+  if(viewportChanged){screens.pass=false;screens.reasons.push('viewport_changed');}
+  const track=camStream&&camStream.getVideoTracks()[0], set=track&&track.getSettings?track.getSettings():{};
+  const streams={raw:streamSummary(st.resultsRaw||[]),smoothed:streamSummary(st.resultsSm||[])};
+  lastSummary={pid,accPx,precPx,accDeg,precDeg,ax,streams,resultsRaw:st.resultsRaw||[],resultsSm:st.resultsSm||[],hz,im,isd,validity,results,coverage,screenQuality:screens,interruptedN:st.interruptedN,pxPerCm,distCm,distSource,anchorEstCm,
+    screenW:innerWidth,screenH:innerHeight,pauses:st.pauses,calRuns,viewportChanged,fullscreen:!!document.fullscreenElement,
+    camLabel:track?track.label:'',camRes:set.width?`${set.width}x${set.height}`:'',camFps:set.frameRate?Math.round(set.frameRate):'',nGot:st.nGot};
+  const f=(v,d=0)=>v==null?'\u2014':v.toFixed(d);
+  const [ga,ca,sa]=accDeg!=null?grade(accDeg,GRADE.accDeg):grade(accPx,GRADE.accPx);
+  const [gp,cp,sp]=precDeg!=null?grade(precDeg,GRADE.precDeg):grade(precPx,GRADE.precPx);
+  const worst=ok.length===results.length&&screens.pass&&passed&&!viewportChanged?Math.max(sa,sp):2;
+
+  let V=[['good','\u2713','Tracking looks good','You can move on.'],
+           ['fair','!','Tracking is usable','Recalibrating may improve it: more light on your face, camera at eye level, head still.'],
+           ['poor','!','Quality requirements not met','The session is saved as a failed screen, with point-specific reasons. Recalibrate before using the search assessment.']][worst];
+  if(continuedAnyway) V=[V[0],V[1],V[2],V[3]+' Note: the calibration check was not passed; you chose to continue anyway.'];
+  $('#verdict').className='verdict '+V[0]; $('#verdictIc').textContent=V[1]; $('#verdictT').textContent=V[2]; $('#verdictP').textContent=V[3];
+  // the search task and experiments unlock only after a passed check; a failed check means recalibrating
+
+  $('#metricGrid').innerHTML=`
+    <div class="metric"><div class="k">Accuracy</div><div class="v mono">${f(accPx)}<span class="u">px</span></div><div class="sub">${accDeg!=null?accDeg.toFixed(2)+'\u00b0 visual angle'+(distSource!=='tape measure'?' (estimated)':''):'no distance, so px only'}</div><div class="sub">${xyLine(ax.accX,ax.accY,true)}</div><div class="sub ${ca}">${ga}</div></div>
+    <div class="metric"><div class="k">Precision (RMS)</div><div class="v mono">${f(precPx)}<span class="u">px</span></div><div class="sub">${precDeg!=null?precDeg.toFixed(2)+'\u00b0':'\u2014'}</div><div class="sub">${xyLine(ax.precX,ax.precY,true)}</div><div class="sub ${cp}">${gp}</div></div>
+    <div class="metric"><div class="k">Sampling rate</div><div class="v mono">${f(hz,1)}<span class="u">Hz</span></div><div class="sub">${im!=null?im.toFixed(1)+' \u00b1 '+isd.toFixed(1)+' ms':'\u2014'}</div></div>
+    <div class="metric"><div class="k">Callback validity</div><div class="v mono">${validity==null?'\u2014':validity.toFixed(0)}<span class="u">%</span></div><div class="sub">Time coverage ${coverage==null?'—':coverage.toFixed(0)+'%'} · ${ok.length}/${results.length} usable points</div></div>`;
+  $('#ptTable tbody').innerHTML=results.map(r=>{const ad=r.accPx!=null?pxToDeg(r.accPx):null,pd=r.precPx!=null?pxToDeg(r.precPx):null;
+    return `<tr><td>${r.i}</td><td class="mono">${r.x}, ${r.y}</td>
+      <td class="mono">${r.accPx==null?'\u2014':r.accPx.toFixed(0)+'px'+(ad!=null?' / '+ad.toFixed(2)+'\u00b0':'')+'<div class="xy">'+xyLine(r.accX,r.accY)+'</div>'}</td>
+      <td class="mono">${r.precPx==null?'\u2014':r.precPx.toFixed(0)+'px'+(pd!=null?' / '+pd.toFixed(2)+'\u00b0':'')+'<div class="xy">'+xyLine(r.precX,r.precY)+'</div>'}</td>
+      <td class="mono">${r.n}${!r.usable?'<div class="xy" style="color:#b44">EXCLUDE: '+esc((r.reasons||[]).join('; '))+'</div>':''}</td></tr>`;}).join('');
+  const warns=[];
+  if(ok.length<results.length) warns.push(`${results.length-ok.length} of ${results.length} points failed the predeclared sample coverage or interruption rules and were excluded from the summary.`);
+  if(!screens.pass)warns.push('The validation screen failed quality checks: '+screens.reasons.slice(0,12).join('; '));
+  if(viewportChanged) warns.push('The window changed size after calibration, which shifts the gaze estimates. Recalibrate for a fair result.');
+  if(accDeg!=null&&distSource!=='tape measure') warns.push('No tape measurement: the degree values use the camera\u2019s distance estimate, which can be off by roughly 15\u201325%. Pixel values avoid distance-conversion error but are still subject to webcam tracking error.');
+  if(vision.clearNow==='no') warns.push('You said you couldn\u2019t see the screen clearly, which can make the results worse.');
+  if(st.pauses>0) warns.push(`The check paused ${st.pauses} time${st.pauses>1?'s':''} because you moved; interrupted points were repeated.`);
+  $('#resWarn').innerHTML=warns.map(w=>`<li>${esc(w)}</li>`).join('');
+  drawMap(results);
+  const bits=[]; if(accPx!=null) bits.push(`Mean offset ${accPx.toFixed(0)} px${accDeg!=null?' ('+accDeg.toFixed(2)+'\u00b0)':''}${distCm!=null?` at ${Math.round(distCm)} cm (${distSource})`:''}.`);
+  const sd=(o,k)=>o[k]==null?'\u2014':`${o[k].toFixed(0)} px${o[k+'Deg']!=null?' ('+o[k+'Deg'].toFixed(2)+'\u00b0)':''}`;
+  bits.push(`Without smoothing: accuracy ${sd(streams.raw,'accPx')}, precision ${sd(streams.raw,'precPx')}. With smoothing: accuracy ${sd(streams.smoothed,'accPx')}, precision ${sd(streams.smoothed,'precPx')}. Both are saved.`);
+  $('#resNote').textContent=bits.join(' ');
+  show('res'); placeCam(null);
+  queueCheckpoint('validation_complete').catch(()=>{});
+}
+function drawMap(results){ const cv=$('#map'); cv.height=Math.round(cv.width*innerHeight/innerWidth);
+  const c=cv.getContext('2d'),W=cv.width,H=cv.height,kx=W/innerWidth,ky=H/innerHeight;
+  c.fillStyle='#0A0D12';c.fillRect(0,0,W,H);c.strokeStyle='rgba(255,255,255,.05)';c.lineWidth=1;
+  for(let i=1;i<4;i++){c.beginPath();c.moveTo(W*i/4,0);c.lineTo(W*i/4,H);c.stroke();c.beginPath();c.moveTo(0,H*i/4);c.lineTo(W,H*i/4);c.stroke();}
+  results.forEach(r=>{const tx=r.x*kx,ty=r.y*ky;
+    if(r.mgx!=null){const gx=r.mgx*kx,gy=r.mgy*ky;c.strokeStyle='rgba(242,112,91,.9)';c.lineWidth=2;c.beginPath();c.moveTo(tx,ty);c.lineTo(gx,gy);c.stroke();c.fillStyle='#33D6BE';c.beginPath();c.arc(gx,gy,6,0,7);c.fill();}
+    c.strokeStyle='#F2B33D';c.lineWidth=2;c.beginPath();c.arc(tx,ty,9,0,7);c.stroke();c.beginPath();c.moveTo(tx-13,ty);c.lineTo(tx+13,ty);c.moveTo(tx,ty-13);c.lineTo(tx,ty+13);c.stroke();});
+}
+
+/* ============================================================
+   6 · LAUNCHER + FINISH
+   ============================================================ */
+function renderExperiments(){ const list=$('#expList'),intro=$('#expIntro');
+  if(!EXPERIMENTS.length){ intro.textContent='This ZIP is a standalone validation experiment. The integrated visual search task is on the results screen.';
+    list.innerHTML='<p class="hint">Add them to the EXPERIMENTS list at the top of the script (a name and a URL each). Each experiment runs its own WebGazer, so it needs its own calibration.</p>'; return; }
+  intro.textContent='Validation completed. External web pages cannot reuse this calibration; any separately opened eye tracking task MUST start and validate its own tracker.';
+  list.innerHTML=EXPERIMENTS.map((e,i)=>`<div class="exp"><div><div class="name">${esc(e.name)}</div><div class="u">${esc(e.url)}</div></div><button class="btn" data-exp="${i}">Open</button></div>`).join('');
+  list.querySelectorAll('[data-exp]').forEach(b=>b.onclick=()=>{
+    if(confirm('This separate page will NOT inherit WebGazer calibration. Only continue if the destination calibrates and validates the webcam again. Open it in a separate tab?'))
+      window.open(EXPERIMENTS[+b.dataset.exp].url,'_blank','noopener,noreferrer');
+  });
+}
+// Turn off the camera and save the last data checkpoint before showing Submit.
+async function finish(){
+  try{ webgazer.pause(); }catch(e){}
+  try{ if(camStream) camStream.getTracks().forEach(t=>t.stop()); }catch(e){}
+  recording=false; trackerOn=false; placeCam(null);
+  if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  show('done');
+  $('#submitStudyData').disabled=true;
+  $('#doneSaved').textContent='Saving the final local checkpoint…';
+  try{
+    if(StudyUpload.configured){
+      await queueKinematics();
+      await queueCheckpoint('finish');
+    }
+    $('#doneSaved').textContent=StudyUpload.configured?'Your data are ready to submit. Nothing has been sent to the research server yet.':
+      'Local pilot mode: no research server is configured. Use Download a backup to save the data.';
+    $('#submitStudyData').disabled=!StudyUpload.configured;
+  }catch(e){
+    $('#doneSaved').textContent='Local storage failed: '+e.message+'. Download a backup now. Do not close the page.';
+  }
+  renderSend();
+}
+// Only this final action sends the saved batches to the research server.
+async function submitStudyData(){
+  const btn=$('#submitStudyData');
+  if(!StudyUpload.configured){$('#doneSaved').textContent='No research server is configured. Download a backup.';return;}
+  btn.disabled=true; $('#retryUpload').hidden=true;
+  btn.textContent='SUBMITTING…'; $('#doneSaved').textContent='Sending saved checkpoints and requesting a verified server receipt…';
+  try{
+    await checkpointLock; // final checkpoint is committed to IndexedDB before any request
+    if(!StudyUpload.status.ready)throw new Error('Study session not ready. Open your original study link and try again.');
+    const ack=await StudyUpload.complete();
+    if(ack && ack.status==='acknowledged'){
+      unsaved=false;btn.textContent='DATA SUBMITTED ✓';
+      $('#doneSaved').textContent=ack.partial?
+        'Partial session received and identified as INCOMPLETE by the research server. You may close this tab.':
+        'Submission confirmed. Your study data were received by the research server. You may close this tab.';
+    }else{
+      $('#doneSaved').textContent='Not confirmed. Please check your internet connection, then retry or download a backup.';
+      btn.textContent='SUBMIT STUDY DATA'; btn.disabled=false;$('#retryUpload').hidden=false;
+    }
+  }catch(e){
+    $('#doneSaved').textContent='Submission failed: '+e.message+'. Retry, or download a backup.';
+    btn.textContent='SUBMIT STUDY DATA'; btn.disabled=false;$('#retryUpload').hidden=false;
+  }
+  renderSend();
+}
+
+/* ============================================================
+   CSV
+   ============================================================ */
+const downloaded=[];
+function download(name,text,mime='text/csv'){ if(!downloaded.includes(name)) downloaded.push(name); renderSend();
+  const b=new Blob([text],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);}
+function stamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());}
+const csvCell=v=>v==null?'':`"${String(v).replace(/"/g,'""')}"`;
+const asCSV=(headers,records)=>[headers.join(','),...records.map(r=>headers.map(k=>csvCell(r[k])).join(','))].join('\n');
+// These movement and angle values are calculated from predictions, not measured directly.
+function computeKinematics(){
+ return GazeKinematics.analyze(sessionLog,{pxPerCm,distanceCm:distCm,distanceSource:distSource});
+}
+function saveKinematics(){
+ if(!sessionLog.length)return false;
+ const k=computeKinematics();
+ download(`gaze_kinematic_samples_${pid}_${stamp()}.csv`,asCSV(Object.keys(k.samples[0]||{}),k.samples));
+ download(`gaze_candidate_movements_${pid}_${stamp()}.json`,JSON.stringify({parameters:k.parameters,summary:k.summary,events:k.events},null,2),'application/json');
+ return true;
+}
+// Raw gaze records are kept so that the measurements can be checked again later.
+function saveRaw(){
+ if(!sessionLog.length)return false;
+ const cols=['participant','t_ms','phase','event','task_id','attempt','target_x','target_y','x','y','raw_x','raw_y','smoothed_x','smoothed_y','screen_w','screen_h','dist_cm','utc_ms','webgazer_elapsed_ms','face_x_normalized','face_y_normalized','face_centered','face_last_seen_age_ms','face_brightness','frame_brightness'];
+ const raw=sessionLog.map(r=>({participant:pid,t_ms:r.t,phase:r.phase,event:r.ev,task_id:r.taskId,
+  attempt:r.attempt,target_x:r.targetX,target_y:r.targetY,x:r.x,y:r.y,raw_x:r.rawX,raw_y:r.rawY,
+  smoothed_x:r.smX,smoothed_y:r.smY,screen_w:r.w,screen_h:r.h,dist_cm:r.d,utc_ms:r.utcMs,webgazer_elapsed_ms:r.webgazerElapsedMs,face_x_normalized:r.faceX,
+  face_y_normalized:r.faceY,face_centered:r.faceCentered,face_last_seen_age_ms:r.faceLastSeenAgeMs,
+  face_brightness:r.faceBrightness,frame_brightness:r.frameBrightness}));
+ download(`gaze_raw_${pid}_${stamp()}.csv`,asCSV(cols,raw));return true;
+}
+function saveQuality(){
+ if(!lastSummary)return false;
+ const cols=['participant','point','target_x','target_y','accuracy_mean_px','accuracy_deg','mean_sample_error_px',
+  'rmse_px','rms_precision_px','rms_successive_px','n_valid','n_invalid','coverage_pct','max_gap_ms',
+  'valid_rate_hz','usable','exclusion_reasons','attempts','interrupted'];
+ const rows=lastSummary.results.map(r=>({participant:pid,point:r.i,target_x:r.x,target_y:r.y,
+  accuracy_mean_px:r.accPx,accuracy_deg:r.accPx!=null?pxToDeg(r.accPx):null,
+  mean_sample_error_px:r.meanSampleErrorPx,rmse_px:r.rmsePx,rms_precision_px:r.precPx,
+  rms_successive_px:r.precisionSuccessivePx,n_valid:r.n,n_invalid:r.invalidCallbacks,
+  coverage_pct:r.coveragePct,max_gap_ms:r.maxGapMs,valid_rate_hz:r.callbackRateHz,
+  usable:r.usable,exclusion_reasons:(r.reasons||[]).join(';'),attempts:r.attempts,interrupted:r.interrupted}));
+ download(`gaze_points_${pid}_${stamp()}.csv`,asCSV(cols,rows));return true;
+}
+function saveAttempts(){
+ if(!validationAttempts.length)return false;
+ const cols=['participant','kind','point','attempt','targetX','targetY','interrupted','elapsedMs','callbacksValid','callbacksInvalid'];
+ download(`gaze_attempts_${pid}_${stamp()}.csv`,asCSV(cols,validationAttempts.map(r=>({participant:pid,...r}))));return true;
+}
+// This local export is a backup if the participant cannot submit online.
+function saveSession(){
+ if(!lastSummary)return false;
+ const s=lastSummary;
+ const pack={study_build:STUDY_BUILD,webgazer_version:'2.0.1',participant:pid,
+  generated_at:new Date().toISOString(),visit_type:studyVisit,eye_tracker_experience:experience,optional_name:participantName,session_outcome:s.screenQuality,
+  calibration_check_passed:passed,continued_without_pass:continuedAnyway,
+  validation_usable_points:s.results.filter(r=>r.usable).length,
+  measured_quality:{accuracy_mean_px:s.accPx,accuracy_deg:s.accDeg,precision_rms_px:s.precPx,
+   precision_deg:s.precDeg,mean_time_coverage_pct:s.coverage,callback_valid_pct:s.validity,
+   sampling_hz:s.hz,inter_sample_mean_ms:s.im,inter_sample_sd_ms:s.isd},
+  display:{w:s.screenW,h:s.screenH,px_per_cm:pxPerCm,distance_cm:distCm,distance_source:distSource,
+    device_pixel_ratio:devicePixelRatio,viewport_changed:viewportChanged},
+  setup:{demo,device,vision,system:sysInfo},
+  calibration:{regression:REGRESSION,kalman:kalmanOn,primary_stream:emaAlpha<1?'smoothed':'raw',
+   cal_points:CAL.length,checks:checkRuns,calibration_runs:calRuns},
+  settings:QUALITY,face_model_source:window.__modelSource,search_trials_completed:searchTrials.length,
+  notes:'Screen pass is a screening rule, NOT proof of psychometric validity. In browser WebGazer model inference timestamp is not independently clocked.'};
+ download(`gaze_session_${pid}_${stamp()}.json`,JSON.stringify(pack,null,2),'application/json');return true;
+}
+function saveValidation(){ const s=lastSummary; if(!s)return false; const q=v=>`"${String(v).replace(/"/g,'""')}"`;
+  const pxdeg=v=>v==null?',':`${v.toFixed(1)},${pxToDeg(v)==null?'':pxToDeg(v).toFixed(3)}`;
+  const rows=['point,target_x,target_y,mean_gaze_x,mean_gaze_y,accuracy_px,accuracy_deg,precision_px,precision_deg,valid_n,accuracy_x_px,accuracy_x_deg,accuracy_y_px,accuracy_y_deg,precision_x_px,precision_x_deg,precision_y_px,precision_y_deg,accuracy_raw_px,accuracy_raw_deg,precision_raw_px,precision_raw_deg,accuracy_smoothed_px,accuracy_smoothed_deg,precision_smoothed_px,precision_smoothed_deg'];
+  s.results.forEach((r,k)=>{const ad=r.accPx!=null?pxToDeg(r.accPx):null,pd=r.precPx!=null?pxToDeg(r.precPx):null;
+    rows.push(`${r.i},${r.x},${r.y},${r.mgx==null?'':r.mgx.toFixed(1)},${r.mgy==null?'':r.mgy.toFixed(1)},${r.accPx==null?'':r.accPx.toFixed(1)},${ad==null?'':ad.toFixed(3)},${r.precPx==null?'':r.precPx.toFixed(1)},${pd==null?'':pd.toFixed(3)},${r.n},${pxdeg(r.accX)},${pxdeg(r.accY)},${pxdeg(r.precX)},${pxdeg(r.precY)},${pxdeg((s.resultsRaw[k]||{}).accPx)},${pxdeg((s.resultsRaw[k]||{}).precPx)},${pxdeg((s.resultsSm[k]||{}).accPx)},${pxdeg((s.resultsSm[k]||{}).precPx)}`);});
+  const kv=(k,v)=>rows.push(`${k},${v==null?'':v}`);
+  rows.push('');
+  kv('participant',s.pid);kv('visit_type',studyVisit);kv('eye_tracker_experience',experience);kv('optional_name',q(participantName));
+  kv('overall_accuracy_px',s.accPx==null?'':s.accPx.toFixed(1)); kv('overall_accuracy_deg',s.accDeg==null?'':s.accDeg.toFixed(3));
+  kv('overall_precision_px',s.precPx==null?'':s.precPx.toFixed(1)); kv('overall_precision_deg',s.precDeg==null?'':s.precDeg.toFixed(3));
+  const A=s.ax||{}, kv2=(k,v,vd)=>{ kv(k+'_px',v==null?'':v.toFixed(1)); kv(k+'_deg',vd==null?'':vd.toFixed(3)); };
+  kv2('overall_accuracy_x',A.accX,A.accXDeg); kv2('overall_accuracy_y',A.accY,A.accYDeg); kv2('overall_accuracy_xy_mean',A.accXY,A.accXYDeg);
+  kv2('overall_precision_x',A.precX,A.precXDeg); kv2('overall_precision_y',A.precY,A.precYDeg); kv2('overall_precision_xy_mean',A.precXY,A.precXYDeg);
+  kv('main_results_use',emaAlpha<1?'smoothed gaze':'raw gaze'); kv('smoothed_stream_alpha',SMOOTH_ALPHA);
+  ['raw','smoothed'].forEach(n=>{ const o=(s.streams||{})[n]||{};
+    kv2(`overall_${n}_accuracy`,o.accPx,o.accPxDeg); kv2(`overall_${n}_precision`,o.precPx,o.precPxDeg);
+    kv2(`overall_${n}_accuracy_x`,o.accX,o.accXDeg); kv2(`overall_${n}_accuracy_y`,o.accY,o.accYDeg);
+    kv2(`overall_${n}_precision_x`,o.precX,o.precXDeg); kv2(`overall_${n}_precision_y`,o.precY,o.precYDeg); });
+  kv('sampling_rate_hz',s.hz==null?'':s.hz.toFixed(2)); kv('inter_sample_mean_ms',s.im==null?'':s.im.toFixed(2)); kv('inter_sample_sd_ms',s.isd==null?'':s.isd.toFixed(2));
+  kv('valid_percent_callbacks_only',s.validity==null?'':s.validity.toFixed(1));
+  kv('valid_percent',s.validity==null?'':s.validity.toFixed(1));
+  kv('time_coverage_percent',s.coverage==null?'':s.coverage.toFixed(1));
+  kv('usable_regions',s.results.filter(r=>r.usable).length);
+  kv('quality_gate_pass',s.screenQuality.pass?'yes':'no');
+  kv('quality_gate_reasons',q(s.screenQuality.reasons.join('; ')));
+  kv('software_build',STUDY_BUILD);
+  kv('viewing_distance_cm',s.distCm==null?'':Math.round(s.distCm)); kv('distance_source',s.distSource); kv('camera_distance_estimate_cm',anchorLensCm);
+  kv('distance_measured_by_participant',tapeState==='done'?'yes':'no');
+  kv('tape_step',!tapeWanted?'off':tapeState==='done'?'measured':tapeState==='skipped'?'skipped (no tape measure)':'not reached');
+  kv('degrees_based_on',s.distSource==='tape measure'?'tape-measured distance':'camera-estimated distance (approximate)');
+  kv('tape_value',tape?tape.value:''); kv('tape_unit',tape?tape.unit:''); kv('tape_cm',tape?tape.cm.toFixed(1):'');
+  kv('tape_check',tape?(tape.differs?'confirmed after differing from camera estimate':'ok'):'');
+  kv('camera_fov_deg_implied',impliedFov!=null?impliedFov.toFixed(1):'');
+  kv('px_per_cm',s.pxPerCm||''); kv('screen_w',s.screenW); kv('screen_h',s.screenH); kv('fullscreen',s.fullscreen?'yes':'no');
+  kv('viewport_changed_since_calibration',s.viewportChanged?'yes':'no'); kv('position_pauses',s.pauses); kv('calibration_runs',s.calRuns);
+  kv('smoothing',emaAlpha<1?'on':'off'); kv('ema_alpha',emaAlpha); kv('regression',REGRESSION); kv('kalman_filter',kalmanOn?'on':'off'); kv('calibration_points',CAL.length); kv('calibration_samples_per_point',CAL_SAMPLES); kv('calibration_check_passed',passed?'yes':continuedAnyway?'no (continued anyway)':'no'); kv('calibration_check_attempts',checkRuns.length);
+  kv('calibration_check_results',q(checkRuns.map((c,i)=>`${i+1}: ${c.accDeg!=null?c.accDeg.toFixed(2)+' deg':c.accPx!=null?Math.round(c.accPx)+' px':'no data'} ${c.pass?'pass':'fail'}`).join('; ')));
+  kv('calibration_check_rule',q(JSON.stringify(QUALITY)+'; callback validity >= '+PASS_MIN_VALID+'%; all check regions required; window unchanged'));
+  kv('distance_rule_cm',`${DIST_MIN}-${DIST_MAX}`); kv('validation_target','cross with shrinking ring, 48 px, on the dark calibration background');
+  kv('validation_grid_x_fractions',V_COLS.join(';')); kv('validation_grid_y_fractions',V_ROWS.join(';')); kv('validation_target_ms',FIND_MS+DWELL); kv('validation_blank_ms',ITI); kv('validation_pruned_ms',PRUNE); kv('validation_extra_find_ms',FIND_MS);
+  kv('ipd_mm_assumed',IPD_MM); kv('camera_fov_deg_assumed',CAM_FOV_DEG);
+  const na=v=>v||'not answered';
+  kv('demo_age',na(demo.age)); kv('demo_sex',na(demo.sex));
+  kv('demo_race_ethnicity',q(na(String(demo.race).replace(/\banother\b/,'another race or ethnicity')))); kv('demo_race_ethnicity_other',q(demo.raceOther)); kv('demo_eye_colour',na(demo.eyes));
+  kv('vision_usual_correction',vision.usual||'not answered'); kv('vision_clear_without_glasses',vision.clearWithout||(!vision.usual||/glasses/.test(vision.usual)?'not answered':'n/a'));
+  kv('vision_wearing_now',vision.now||'not answered'); kv('vision_screen_clear_now',vision.clearNow||'not answered'); kv('device_type',device.type); kv('computer_model',q(device.model)); kv('camera_type',device.camType); kv('webcam_model',q(device.webcam));
+  kv('camera',q(s.camLabel)); kv('camera_resolution',s.camRes); kv('camera_frame_rate',s.camFps); kv('cameras_available',camCount==null?'':camCount);
+  kv('os',q(sysInfo.os)); kv('cpu_architecture',q(sysInfo.arch)); kv('browser',q(sysInfo.browser)); kv('gpu',q(sysInfo.gpu));
+  kv('cpu_cores',navigator.hardwareConcurrency||''); kv('device_memory_gb',navigator.deviceMemory||'');
+  kv('screen_resolution',`${screen.width}x${screen.height}`); kv('device_pixel_ratio',devicePixelRatio); kv('touch_points',navigator.maxTouchPoints||0);
+  kv('user_agent',q(navigator.userAgent));
+  kv('face_model_source',q(window.__modelSource)); kv('webgazer','2.0.1');
+  download(`gaze_validation_${pid}_${stamp()}.csv`,rows.join('\n')); return true; }
+async function saveAll(){
+  if(recoveryMode && StudyUpload.configured){
+    const entries=await StudyUpload.pending();
+    if(entries.length){download(`saved_recovery_${pid}_${stamp()}.json`,JSON.stringify(entries,null,2),'application/json');
+      toast('Saved a recovery backup. This contains sensitive study records.');return;}
+    toast('No locally pending batches remain; retry confirmation using the submit button.');return;
+  }
+  const jobs=[saveValidation,saveQuality,saveAttempts,saveRaw,saveKinematics,saveSession]; if(lastSearch)jobs.push(saveSearch,saveSearchTrials);
+  let n=0; for(const j of jobs){ if(j()) n++; await sleep(350); }
+  if(n){ unsaved=false; toast(n>1?`Downloading ${n} files. If your browser asks, allow multiple downloads.`:'Downloading 1 file.'); }
+  else toast('There\u2019s no data to download yet.');
+}
+function renderSend(){
+ const st=StudyUpload.status;
+ const info=!StudyUpload.configured?'<b>Local pilot mode.</b> No Railway API has been configured; use Download a backup.':
+   (st.receipt?'<b>Submission confirmed.</b> Research server received the saved study records.':
+     '<b>Not yet submitted.</b> '+st.pending+' locally saved checkpoint batch(es). Data will be uploaded only after you press SUBMIT STUDY DATA.'+
+     (st.error?' Last server error: '+esc(st.error):''));
+ document.querySelectorAll('.sendbox').forEach(el=>{el.innerHTML=info;});
+}
+addEventListener('study-upload-status',renderSend);
+$('#retryUpload').onclick=submitStudyData;
+$('#submitStudyData').onclick=submitStudyData;
+let logUploadCursor=0,attemptUploadCursor=0,checkUploadCursor=0,searchUploadCursor=0;
+// Save movement calculations locally before the final submission.
+async function queueKinematics(){
+ if(!StudyUpload.configured)return;
+ const k=computeKinematics();
+ // Small chunks keep every request under FastAPI's 3 MB maximum.
+ for(let offset=0;offset<k.samples.length;offset+=250){
+   await StudyUpload.enqueue('kinematic_samples',{offset,samples:k.samples.slice(offset,offset+250),
+     distance_source:distSource,analysis_version:k.parameters.version},STUDY_BUILD);
+ }
+ for(let offset=0;offset<k.events.length;offset+=200){
+   await StudyUpload.enqueue('movement_candidates',{offset,events:k.events.slice(offset,offset+200),
+     algorithm:k.parameters},STUDY_BUILD);
+ }
+ await StudyUpload.enqueue('analysis_manifest',{analysis_parameters:k.parameters,summary:k.summary},STUDY_BUILD);
+}
+let checkpointLock=Promise.resolve();
+// Collect a snapshot of the current study data without sending it yet.
+function queueCheckpoint(kind){
+ checkpointLock=checkpointLock.catch(()=>{}).then(()=>persistCheckpoint(kind));
+ return checkpointLock;
+}
+// Keep checkpoints in the browser queue so an interrupted visit may be recoverable.
+async function persistCheckpoint(kind){
+ if(!StudyUpload.configured||!StudyUpload.status.ready)return false;
+ const untilLog=sessionLog.length,untilAttempts=validationAttempts.length,untilChecks=checkRuns.length,untilTrials=searchTrials.length;
+ const batch={participant:pid,visit:studyVisit,eye_tracker_experience:experience,
+    gaze_events:sessionLog.slice(logUploadCursor,untilLog),
+    attempts:validationAttempts.slice(attemptUploadCursor,untilAttempts),
+    checks:checkRuns.slice(checkUploadCursor,untilChecks),
+    search_trials:searchTrials.slice(searchUploadCursor,untilTrials),
+    validation_summary:kind==='validation_complete'||kind==='finish'?lastSummary:null,
+    search_summary:kind==='search_complete'||kind==='finish'?lastSearch:null,
+    participant_details:kind==='finish'?{optional_name:participantName,demographics:demo,device,vision,system:sysInfo,
+      screen_px_per_cm:pxPerCm,distance_cm:distCm,distance_source:distSource,
+      age:demo.age||null,eye_tracker_experience:experience}:null,
+    viewport:{w:innerWidth,h:innerHeight},recording_active:recording};
+ // Serial upload queue persistence is coordinated in upload.js. Advance cursors only after IndexedDB stores the batch.
+ await StudyUpload.enqueue(kind,batch,STUDY_BUILD);
+ logUploadCursor=untilLog;attemptUploadCursor=untilAttempts;checkUploadCursor=untilChecks;searchUploadCursor=untilTrials;
+ return true;
+}
+// Periodic checkpoint protects partial sessions if the tab closes abruptly.
+setInterval(()=>{
+  if(StudyUpload.configured && recording && sessionLog.length>logUploadCursor)
+    queueCheckpoint('periodic_gaze').catch(()=>{});
+},15000);
+renderSend();
+addEventListener('beforeunload',e=>{ if(unsaved){ e.preventDefault(); e.returnValue=''; } });
+
+/* ============================================================
+   WIRING
+   ============================================================ */
+$('#gazeToggle').onclick=()=>setLiveDot(!liveDot);
+const needPass=()=>{if(passed&&lastSummary&&lastSummary.screenQuality.pass&&!viewportChanged)return false;
+ toast('This assessment requires a passed calibration and all usable validation points. Please recalibrate.',6000);return true;};
+$('#toExp').onclick=finish;
+$('#toExp2').onclick=finish;
+$('#reCalFromRes').onclick=showCalIntro;
+$('#expBack').onclick=()=>show('res');
+$('#backRes').onclick=()=>show('res');
+$('#dlRaw').onclick=()=>{ saveRaw()||toast('There\u2019s no data to download yet.'); };
+$('#dlValidation').onclick=()=>{ saveValidation()||toast('There\u2019s no data to download yet.'); };
+['#dlAll','#dlAll2','#saveAll','#doneDl'].forEach(s=>$(s).onclick=saveAll);
+$('#finishBtn').onclick=finish;
+
+/* ============================================================
+   5b · ITEM-LEVEL VISUAL SEARCH (Brand-inspired adaptation)
+   Engbert & Kliegl (2003) implemented inline, no extra libraries.
+   ============================================================ */
+// The search task stays at 25 trials, matching the original experiment.
+const SEARCH_TRIALS=25;         // keep the 25 rounds specified in the original uploaded experiment
+const SEARCH_MIN_DIST=125;   // dense layout: 18 items require sufficiently separated E centers      // min centre-to-centre spacing (px)
+const EK_LAMBDA=6;              // Engbert & Kliegl velocity threshold (SDs)
+const EK_MIN_SACC=2;            // min consecutive samples to count a saccade
+const AOIS=[{w:40,h:48},{w:60,h:70},{w:85,h:100},{w:110,h:140},{w:135,h:170}];
+// Candidate gaze-to-stimulus AOI sizes, NOT comparable with Brand unless methods are matched.
+const SEARCH_MAX_ATTEMPTS=3;
+const DURS=[100,150,275];      // minimum fixation durations (ms)
+
+// This labels possible fixations from gaze coordinates; it cannot confirm true fixation.
+function detectFixationsSegment(samples,minDurMs){
+  const n=samples.length; if(n<6) return [];
+  let X=samples.map(s=>s.x), Y=samples.map(s=>s.y); const T=samples.map(s=>s.t);
+  const sm=a=>a.map((v,i)=>{const lo=Math.max(0,i-1),hi=Math.min(n-1,i+1);let s=0,c=0;for(let j=lo;j<=hi;j++){s+=a[j];c++;}return s/c;});
+  X=sm(X); Y=sm(Y);                                   // window-3 smoothing (noisy webcam data)
+  const vx=new Array(n).fill(0), vy=new Array(n).fill(0);
+  for(let i=2;i<n-2;i++){ const dt=((T[i+2]-T[i-2])/4)/1000; if(dt<=0)continue;
+    vx[i]=(X[i+2]+X[i+1]-X[i-1]-X[i-2])/(6*dt); vy[i]=(Y[i+2]+Y[i+1]-Y[i-1]-Y[i-2])/(6*dt); }
+  const sdMed=v=>{const sq=v.map(a=>a*a);let s=Math.sqrt(Math.max(0,median(sq)-median(v)**2));
+    if(!(s>1e-6)){s=Math.sqrt(Math.max(0,mean(sq)-mean(v)**2));} return s;};
+  const thx=EK_LAMBDA*sdMed(vx), thy=EK_LAMBDA*sdMed(vy);
+  const sac=new Array(n).fill(false);
+  if(thx>1e-6&&thy>1e-6){ for(let i=0;i<n;i++) sac[i]=(vx[i]/thx)**2+(vy[i]/thy)**2>1; }
+  let i=0; while(i<n){ if(sac[i]){let j=i;while(j<n&&sac[j])j++; if(j-i<EK_MIN_SACC){for(let k=i;k<j;k++)sac[k]=false;} i=j;} else i++; }
+  const fix=[]; i=0;
+  while(i<n){ if(!sac[i]){ let j=i; while(j<n&&!sac[j])j++; const a=i,b=j-1, dur=T[b]-T[a];
+      if(dur>=minDurMs) fix.push({x:median(X.slice(a,b+1)),y:median(Y.slice(a,b+1)),t0:T[a],t1:T[b],dur}); i=j; } else i++; }
+  return fix;
+}
+function detectFixations(samples,minDurMs){
+  // Gaps must break fixations: an absent webcam callback is not evidence of stable gaze.
+  const clean=samples.filter(s=>Number.isFinite(s.x)&&Number.isFinite(s.y)&&Number.isFinite(s.t))
+     .sort((a,b)=>a.t-b.t);
+  const segments=[];let current=[];
+  for(const p of clean){if(current.length && (p.t-current[current.length-1].t)>250){
+     if(current.length>=6)segments.push(current);current=[];}
+     current.push(p);}
+  if(current.length>=6)segments.push(current);
+  return segments.flatMap(block=>detectFixationsSegment(block,minDurMs));
+}
+function searchTrialQuality(tr){
+ if(!tr.startedAt||!tr.endedAt)return {usable:false,reasons:['missing_trial_times']};
+ const dur=Math.min(25000,Math.max(1,tr.endedAt-tr.startedAt));
+ const m=GazeQuality.measure(tr.gaze.map(g=>({t:g.t-tr.startedAt,x:g.x,y:g.y})),
+  {x:0,y:0},{analysisStartMs:0,analysisEndMs:dur,minSamples:10,
+   coverageBinMs:250,minCoveragePct:55,maxGapMs:1000});
+ return {usable:m.usable,reasons:m.reasons,coveragePct:m.coveragePct,rateHz:m.callbackRateHz};
+}
+// Place the two target Es and 16 distractors without overlapping them.
+function makeTrial(){
+  const x0=80,x1=innerWidth-80,y0=170,y1=innerHeight-105;
+  if(x1-x0<700||y1-y0<380)return null;
+  const all=[];
+  let tries=0;
+  while(all.length<18&&tries<12000){
+    tries++;const x=x0+Math.random()*(x1-x0),y=y0+Math.random()*(y1-y0);
+    if(all.every(p=>Math.hypot(p.x-x,p.y-y)>=SEARCH_MIN_DIST))all.push({x:Math.round(x),y:Math.round(y)});
+  }
+  if(all.length!==18)return null;
+  const idx=[...all.keys()];
+  for(let k=idx.length-1;k>0;k--){const j=(Math.random()*(k+1))|0;[idx[k],idx[j]]=[idx[j],idx[k]];}
+  const targetSet=new Set(idx.slice(0,2));const targets=[];
+  all.forEach((p,k)=>{p.id=k+1;p.target=targetSet.has(k);if(p.target)targets.push({id:p.id,x:p.x,y:p.y});});
+  return {targets,stim:all,gaze:[],clicks:[],invalidCallbacks:0,startedAt:null,endedAt:null,
+    status:'pending',pauseTriggered:false};
+}
+function renderTrial(tr){
+ const area=$('#searchArea');area.innerHTML='';
+ tr.stim.forEach(p=>{const d=document.createElement('div');d.className='stim'+(p.target?' target':'');
+  d.style.left=p.x+'px';d.style.top=p.y+'px';d.dataset.stimulusId=p.id;
+  for(let k=0;k<9;k++){const cell=document.createElement('div');
+    if(k===4){cell.textContent='E';cell.className=p.target?'c':'c mir';}
+    else cell.textContent='#';d.appendChild(cell);}
+  area.appendChild(d);
+ });
+}
+function trialUntilDone(tr){return new Promise(resolve=>{
+  let done=false;const area=$('#searchArea'),hit=new Set();
+  function fin(reason){if(done)return;done=true;area.removeEventListener('mousedown',onC);
+    document.removeEventListener('keydown',onK);clearTimeout(to);clearInterval(iv);
+    tr.endedAt=now();tr.status=reason;tr.quality=searchTrialQuality(tr);resolve(reason);}
+  function onC(e){const x=e.clientX,y=e.clientY;
+    const item=tr.stim.filter(p=>Math.abs(x-p.x)<=55&&Math.abs(y-p.y)<=75)
+      .sort((a,b)=>Math.hypot(x-a.x,y-a.y)-Math.hypot(x-b.x,y-b.y))[0];
+    tr.clicks.push({t:now(),x,y,stimulus_id:item?item.id:null,correct:!!(item&&item.target)});
+    logEvent('click',x,y);if(item&&item.target)hit.add(item.id);
+    if(hit.size>=2)fin('completed');
+  }
+  function onK(e){if(e.code==='Space'){e.preventDefault();fin('skipped');}
+    if(e.key==='Escape'){abortTask('Search task stopped');fin('aborted');}}
+  const to=setTimeout(()=>fin('timed_out'),25000);
+  const iv=setInterval(()=>{if(aborted)fin('aborted');else if(paused||viewportChanged)fin('interrupted');},70);
+  area.addEventListener('mousedown',onC);document.addEventListener('keydown',onK);
+ });}
+// Run the search task only once per session to avoid mixing in practice effects.
+async function runSearch(){
+  if(searchHasRun){toast('This study session already contains a visual search attempt. Complete or finish the current session.');if(lastSearch)show('sres');return;}
+  if(needPass())return;
+  searchHasRun=true;
+  aborted=false;const my=++runId;phase='search';show('search');placeCam(null);
+  searchTrials=[];activeTargetX=null;activeTargetY=null;
+  for(let ti=0;ti<SEARCH_TRIALS;ti++){
+    if(aborted||my!==runId)break;
+    let tr=null;
+    for(let retry=1;retry<=SEARCH_MAX_ATTEMPTS;retry++){
+      if(await gate()){if(aborted||my!==runId)return;await sleep(RESUME_SETTLE);}
+      tr=makeTrial();
+      if(!tr){
+        abortTask('The screen is too small for 18 separated search items. Use a larger monitor or reduce browser zoom and recalibrate.');
+        return;
+      }
+      tr.id=ti+1;tr.attempt=retry;activeTaskId=`search_${tr.id}`;activeAttempt=retry;
+      renderTrial(tr);curTrial=tr;tr.startedAt=now();searchActive=true;
+      $('#searchMsg').textContent=`Round ${ti+1} of ${SEARCH_TRIALS}: click the two normal-facing “E”s.`;
+      logEvent('search_trial_start',0,0);
+      const outcome=await trialUntilDone(tr);
+      searchActive=false;logEvent('search_trial_end',0,0);
+      if(aborted||my!==runId){tr.status='aborted';searchTrials.push(tr);await queueCheckpoint('search_aborted').catch(()=>{});break;}
+      if(outcome==='interrupted'&&retry<SEARCH_MAX_ATTEMPTS){
+        validationAttempts.push({kind:'search',point:ti+1,attempt:retry,targetX:null,targetY:null,
+          interrupted:true,elapsedMs:tr.endedAt-tr.startedAt,
+          callbacksValid:tr.gaze.length,callbacksInvalid:tr.invalidCallbacks||0});
+        $('#searchArea').innerHTML='';await gate();await sleep(700);continue;
+      }
+      if(outcome==='interrupted')tr.status='excluded_interrupted';
+      validationAttempts.push({kind:'search',point:ti+1,attempt:retry,targetX:null,targetY:null,
+        interrupted:outcome==='interrupted',elapsedMs:tr.endedAt-tr.startedAt,
+        callbacksValid:tr.gaze.length,callbacksInvalid:tr.invalidCallbacks||0});
+      searchTrials.push(tr);await queueCheckpoint('search_trial');break;
+    }
+    if(aborted||my!==runId)break;
+    $('#searchArea').innerHTML='';await sleep(250);
+  }
+  searchActive=false;curTrial=null;activeTaskId='';activeAttempt=0;
+  if(!aborted&&my===runId)scoreSearch();
+}
+function scoreSearch(){
+  const main=scoreStream(g=>g),raw=scoreStream(g=>({t:g.t,x:g.rx,y:g.ry})),
+    smoothed=scoreStream(g=>({t:g.t,x:g.smx,y:g.smy}));
+  lastSearch={rows:main.rows,rocByDur:main.rocByDur,byStream:{raw,smoothed},
+    metric:'item-level target-discrimination, NOT independently validated fixation sensitivity',
+    validTrials:searchTrials.filter(t=>(t.status==='completed'||t.status==='timed_out')&&t.quality?.usable).length};
+  unsaved=true;phase='search_results';renderSearchResults();
+  queueCheckpoint('search_complete').catch(()=>{});
+}
+// These counts compare gaze with target items, not with an independent eye tracker.
+function scoreStream(pick){
+  const rows=[],rocByDur={};
+  DURS.forEach(D=>{
+    const pts=[];
+    AOIS.forEach(A=>{
+      let TP=0,FP=0,FN=0,TN=0;
+      searchTrials.filter(t=>['completed','timed_out'].includes(t.status)&&t.quality?.usable).forEach(tr=>{
+        const fix=detectFixations(tr.gaze.map(pick).filter(g=>Number.isFinite(g.x)&&Number.isFinite(g.y)),D);
+        tr.stim.forEach(item=>{
+          const fixated=fix.some(f=>Math.abs(f.x-item.x)<=A.w/2 && Math.abs(f.y-item.y)<=A.h/2);
+          if(item.target&&fixated)TP++;
+          else if(item.target&&!fixated)FN++;
+          else if(!item.target&&fixated)FP++;
+          else TN++;
+        });
+      });
+      const sens=(TP+FN)?TP/(TP+FN):null,spec=(TN+FP)?TN/(TN+FP):null;
+      rows.push({D,A,TP,FP,FN,TN,sens,spec});
+      if(sens!=null&&spec!=null)pts.push({fpr:1-spec,tpr:sens});
+    });
+    const hasTrials=rows.some(r=>r.D===D && (r.TP+r.FP+r.FN+r.TN)>0);
+    pts.push({fpr:0,tpr:0},{fpr:1,tpr:1});pts.sort((a,b)=>a.fpr-b.fpr||a.tpr-b.tpr);
+    let auc=null;if(hasTrials){auc=0;for(let k=1;k<pts.length;k++)auc+=(pts[k].fpr-pts[k-1].fpr)*(pts[k].tpr+pts[k-1].tpr)/2;}
+    rocByDur[D]={pts,auc};
+  });
+  return {rows,rocByDur};
+}
+function renderSearchResults(){
+  const nc=searchTrials.reduce((s,t)=>s+t.clicks.length,0), ng=searchTrials.reduce((s,t)=>s+t.gaze.length,0);
+  $('#sresIntro').textContent=`${searchTrials.length} rounds (${lastSearch.validTrials} scored), ${nc} clicks, ${ng} gaze samples. The ROC compares target and distractor items, NOT known human fixations.`;
+  $('#rocTable tbody').innerHTML=lastSearch.rows.map(r=>`<tr><td>${r.D}</td><td class="mono">${r.A.w}×${r.A.h}</td><td class="mono">${r.TP}</td><td class="mono">${r.FP}</td><td class="mono">${r.FN}</td><td class="mono">${r.TN}</td><td class="mono">${r.sens==null?'—':r.sens.toFixed(2)}</td><td class="mono">${r.spec==null?'—':r.spec.toFixed(2)}</td></tr>`).join('');
+  const aucs=DURS.map(D=>`${D} ms: AUC ${lastSearch.rocByDur[D].auc==null?'NA':lastSearch.rocByDur[D].auc.toFixed(2)}`).join('; ');
+  $('#sresNote').textContent=`${aucs}. These are descriptive target-versus-distractor discrimination statistics, not independently validated fixation sensitivity/specificity. Only trials passing time-coverage checks contribute; see trial files. Webcam sampling intervals vary by hardware and browser; inspect exported raw trials before interpreting results.`;
+  drawROC(); show('sres');
+}
+// This plot shows item discrimination based on our predicted gaze classifications.
+function drawROC(){
+  const cv=$('#roc'),c=cv.getContext('2d'),W=cv.width,H=cv.height,pad=56;
+  const X0=pad,Y0=H-pad, px=x=>X0+x*(W-pad-X0), py=y=>Y0-y*(Y0-pad);
+  c.fillStyle='#0A0D12';c.fillRect(0,0,W,H);
+  c.strokeStyle='#2A3543';c.lineWidth=1;c.beginPath();c.moveTo(px(0),py(0));c.lineTo(px(1),py(0));c.moveTo(px(0),py(0));c.lineTo(px(0),py(1));c.stroke();
+  c.strokeStyle='rgba(255,255,255,.06)';for(let g=0.25;g<1;g+=0.25){c.beginPath();c.moveTo(px(g),py(0));c.lineTo(px(g),py(1));c.moveTo(px(0),py(g));c.lineTo(px(1),py(g));c.stroke();}
+  c.strokeStyle='#3C4A5C';c.setLineDash([5,5]);c.beginPath();c.moveTo(px(0),py(0));c.lineTo(px(1),py(1));c.stroke();c.setLineDash([]);
+  c.fillStyle='#8A93A3';c.font='13px Inter,sans-serif';c.textAlign='center';
+  c.fillText('Distractor gaze rate (1 − specificity)',(px(0)+px(1))/2,H-16);
+  c.save();c.translate(18,(py(0)+py(1))/2);c.rotate(-Math.PI/2);c.fillText('Target gaze rate (sensitivity)',0,0);c.restore();
+  const col={100:'#33D6BE',150:'#F2B33D',275:'#F2705B'}; let ly=pad+8; c.textAlign='left';
+  DURS.forEach(D=>{ const r=lastSearch.rocByDur[D], k=col[D]||'#fff'; c.strokeStyle=k;c.fillStyle=k;c.lineWidth=2;
+    c.beginPath(); r.pts.forEach((p,i)=>{const Xv=px(p.fpr),Yv=py(p.tpr); i?c.lineTo(Xv,Yv):c.moveTo(Xv,Yv);}); c.stroke();
+    r.pts.forEach(p=>{c.beginPath();c.arc(px(p.fpr),py(p.tpr),3,0,7);c.fill();});
+    c.fillText(`${D} ms · AUC ${r.auc==null?'NA':r.auc.toFixed(2)}`, px(0.42), ly); ly+=18; });
+}
+function saveSearch(){
+ if(!lastSearch)return false;
+ const cols=['participant','visit','signal','min_fix_ms','aoi_w','aoi_h','TP','FP','FN','TN',
+  'target_detection_rate','distractor_rejection_rate','derived_auc','interpretation'];
+ const rows=[];
+ for(const name of ['primary','raw','smoothed']){
+  const t=name==='primary'?lastSearch:lastSearch.byStream[name];
+  t.rows.forEach(r=>rows.push({participant:pid,visit:studyVisit,signal:name,
+    min_fix_ms:r.D,aoi_w:r.A.w,aoi_h:r.A.h,TP:r.TP,FP:r.FP,FN:r.FN,TN:r.TN,
+    target_detection_rate:r.sens,distractor_rejection_rate:r.spec,
+    derived_auc:t.rocByDur[r.D].auc,
+    interpretation:'target-vs-distractor item discrimination; not independent fixation validation'}));
+ }
+ download(`gaze_search_item_metrics_${pid}_${stamp()}.csv`,asCSV(cols,rows));return true;
+}
+function saveSearchTrials(){
+ if(!searchTrials.length)return false;
+ const cols=['participant','visit','trial','attempt','status','started_at_ms','ended_at_ms',
+  'stimulus_id','target','x','y','clicked','first_click_ms','click_correct','trial_gaze_n','invalid_callbacks','gaze_usable','gaze_coverage_pct','gaze_exclusion_reason'];
+ const out=[];
+ searchTrials.forEach(tr=>tr.stim.forEach(item=>{
+   const hits=tr.clicks.filter(c=>c.stimulus_id===item.id);
+   out.push({participant:pid,visit:studyVisit,trial:tr.id,attempt:tr.attempt,status:tr.status,
+     started_at_ms:tr.startedAt?tr.startedAt-t0:null,ended_at_ms:tr.endedAt?tr.endedAt-t0:null,
+     stimulus_id:item.id,target:item.target,x:item.x,y:item.y,clicked:hits.length>0,
+     first_click_ms:hits.length?hits[0].t-t0:null,click_correct:hits.length?hits[0].correct:null,
+     trial_gaze_n:tr.gaze.length,invalid_callbacks:tr.invalidCallbacks||0,
+     gaze_usable:tr.quality?.usable||false,gaze_coverage_pct:tr.quality?.coveragePct,
+     gaze_exclusion_reason:(tr.quality?.reasons||[]).join(';')});
+ }));
+ download(`gaze_search_trials_${pid}_${stamp()}.csv`,asCSV(cols,out));return true;
+}
+function showSearchIntro(){ phase='instructions';
+  instruct('Optional task','Find the letters',
+    '<p>You\u2019ll see a screen full of the letter \u201cE\u201d. Most face backwards, but <b>two face the normal way</b>. Find both and <b>click each one</b>. The next round starts as soon as you\u2019ve clicked both. There are '+SEARCH_TRIALS+' rounds and each can last up to 25 seconds. Use a large desktop display.</p><p class="hint">Can\u2019t find them? Press Space to skip a round. Esc stops the task.</p>',
+    [{label:'Start the search task',primary:true,fs:true,fn:runSearch},{label:'Not now',fn:()=>show('res')}]); }
+$('#toSearch').onclick=()=>{ if(needPass()) return; showSearchIntro(); };
+// Deliberately no repeat button: repeated search runs would bias within-session outcomes.
+$('#dlSearch').onclick=()=>{ saveSearch()||toast('There\u2019s no search data yet.'); };
+})();
+</script>
+</body>
+</html>

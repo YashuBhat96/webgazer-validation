@@ -1,0 +1,16 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const ctx={globalThis:null};ctx.globalThis=ctx;
+vm.runInNewContext(fs.readFileSync('gaze_kinematics.js','utf8'),ctx);
+const gaze=[];
+for(let i=0;i<10;i++)gaze.push({ev:'gaze',t:i*50,utcMs:100000+i*50,phase:'search',taskId:'search_1',attempt:1,rawX:500,rawY:300,smX:500,smY:300,w:1000,h:600,d:60,targetX:500,targetY:300});
+for(let i=10;i<14;i++)gaze.push({ev:'gaze',t:i*50,phase:'search',taskId:'search_1',attempt:1,rawX:500+(i-9)*140,rawY:300,smX:500+(i-9)*140,smY:300,w:1000,h:600,d:60,targetX:500,targetY:300});
+const r=ctx.GazeKinematics.analyze(gaze,{pxPerCm:40,distanceCm:60,distanceSource:'tape measure'});
+assert.equal(r.samples.length,14);
+assert.equal(r.samples[0].gaze_x_deg,0);
+assert.equal(r.samples[0].error_radial_deg,0);
+assert(r.samples.some(s=>s.velocity_deg_per_s>35));
+assert(r.events.some(e=>e.type==='candidate_fixation'));
+assert(r.events.some(e=>e.type==='candidate_saccade'));
+assert(r.events.every(e=>e.method==='exploratory_ivt_raw'));
+assert.equal(r.parameters.distance_source,'tape measure');
+console.log('Kinematics tests PASS: raw screen angles, target errors, sample velocities and candidate movements');

@@ -1,0 +1,21 @@
+'use strict';
+const assert=require('node:assert/strict');
+const q=require('./quality.js');
+const samples=(x,y,start=300,end=2000,step=33)=>{
+ const a=[];for(let t=start;t<end;t+=step)a.push({t,x,y});return a;
+};
+const good=q.measure(samples(400,300),{x:400,y:300});
+assert.equal(good.usable,true,'accurate gaze with steady callbacks should be usable');
+assert.equal(good.accuracyMeanPx,0);
+assert.equal(good.precisionRmsPx,0);
+assert.equal(q.measure([],{x:400,y:300}).usable,false);
+assert.equal(q.measure([{t:400,x:400,y:300}],{x:400,y:300}).usable,false);
+assert.equal(q.measure(samples(400,300,300,850),{x:400,y:300}).usable,false,'stalled callback should fail time coverage');
+assert.equal(q.measure(samples(400,300,300,850).concat(samples(400,300,1550,2000)),{x:400,y:300}).usable,false,'large gap should fail');
+const ok=(a,usable=true)=>({usable,reasons:usable?[]:['insufficient_samples'],accuracyMeanPx:a,accuracyDeg:a});
+assert.equal(q.screenCheck([ok(1),ok(1),ok(1),ok(1),ok(1)]).pass,true);
+assert.equal(q.screenCheck([ok(0),ok(0),ok(0),ok(0),ok(10)]).pass,false,'one bad corner must fail even if mean is low');
+assert.equal(q.screenCheck([ok(1),ok(1),ok(1),ok(1),ok(1,false)]).pass,false,'missing region must fail');
+const noisy=q.measure(samples(400,300).map((s,i)=>({...s,x:s.x+(i%2?20:-20)})),{x:400,y:300});
+assert.ok(noisy.precisionRmsPx>10,'precision must register jitter');
+console.log('Quality regression tests passed: accurate, no data, sparse, dropout, bad region, incomplete point, jitter');

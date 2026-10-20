@@ -1,0 +1,72 @@
+# Credentials and private configuration
+.env
+.env.*
+**/.env
+**/.env.*
+**/.env.example
+**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*credentials*.json
+*service-account*.json
+secrets/
+.private/
+
+# Participant information and study exports
+# Research data should never be kept in the public source repository.
+data/
+datasets/
+participant_data/
+raw_data/
+sessions/
+uploads/
+exports/
+results/
+outputs/
+reports/
+plots/
+backups/
+*.csv
+*.tsv
+*.xlsx
+*.parquet
+*.feather
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.jsonl
+*.ndjson
+*.json.gz
+*.zip
+*.tar.gz
+
+# Python caches and local virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# JavaScript and browser test artifacts
+node_modules/
+coverage/
+playwright-report/
+test-results/
+
+# Local machine files, editors and logs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*.log
+*.tmp
+.cache/

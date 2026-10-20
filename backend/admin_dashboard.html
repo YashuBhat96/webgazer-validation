@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WebGazer researcher portal</title>
+<style>
+:root{font-family:system-ui,-apple-system,sans-serif;color:#162637;background:#f6f7fa}*{box-sizing:border-box}body{margin:0}header{background:#102e4f;color:white;padding:21px max(20px,calc((100% - 1200px)/2));display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}h1{font-size:22px;margin:0}header button{background:transparent;color:white;border:1px solid #abc2d8;padding:9px 15px;border-radius:8px;cursor:pointer}main{max-width:1200px;margin:28px auto;padding:0 20px}.meta{color:#536373;font-size:14px}section{background:white;border:1px solid #dbe0e9;border-radius:12px;padding:22px;margin:16px 0}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}.stat{background:#eff4f9;border-radius:10px;padding:18px}.stat b{display:block;font-size:29px;margin-top:5px}.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:780px}th,td{padding:13px 10px;border-bottom:1px solid #e8ebf0;text-align:left;font-size:14px}th{background:#f7f8fb}.pill{border-radius:100px;padding:4px 9px;background:#e7eff6;white-space:nowrap}.pill.submitted{background:#dceee5;color:#175d36}.pill.incomplete{background:#fff0d1;color:#7c4a03}#error,#loginError{color:#a52827}button{font:inherit;cursor:pointer}button:disabled{opacity:.6}.primary{background:#173c63;color:white;border:0;border-radius:8px;padding:12px 18px;font-weight:650}.export{background:#176443;color:white;border:0;border-radius:10px;padding:16px 24px;font-weight:750;font-size:17px}.export:hover{background:#124d34}.link{border:0;background:transparent;color:#085b9b;font-weight:650;text-decoration:underline;padding:3px}.login{max-width:450px;margin:10vh auto;padding:32px;background:white;border:1px solid #dbe0e9;border-radius:15px;box-shadow:0 8px 35px #12233c11}.login label{font-weight:650;display:block;margin:24px 0 8px}.login input{width:100%;font:inherit;padding:14px;border-radius:7px;border:1px solid #adb7c4}.login button{width:100%;margin-top:18px}#loginView[hidden],#dashboardView[hidden]{display:none!important}
+</style></head>
+<body>
+<!-- The login screen does not contain any private study records. -->
+<div id="loginView"><div class="login"><h1>Researcher sign in</h1><p class="meta">Private study results and raw gaze data. Enter your password each time you open or refresh this page.</p><form id="loginForm"><label for="password">Researcher password</label><input id="password" type="password" required autocomplete="off" spellcheck="false"><button class="primary" type="submit" id="loginBtn">Sign in</button></form><p id="loginError" role="alert"></p></div></div>
+<!-- Session counts and download controls appear only after a successful login. -->
+<div id="dashboardView" hidden><header><h1>WebGazer · Research dashboard</h1><button id="logout">Sign out</button></header>
+<main><p class="meta">Protected participant data. Keep exported files on approved research storage. Dashboard updates every 20 seconds after submissions arrive.</p>
+<div class="stats"><div class="stat">Completed submissions<b id="submitted">—</b><small>Not necessarily unique people</small></div><div class="stat">All started uploads<b id="total">—</b></div><div class="stat">Incomplete submissions<b id="incomplete">—</b></div><div class="stat">Currently uploading<b id="uploading">—</b></div></div>
+<section><h2 style="margin-top:0">Export all research data</h2><p class="meta">A single ZIP containing all saved sessions, raw JSON checkpoints, CSV tables of gaze and experimental measures, session summaries, and PNG plots. The ZIP may include optional names and demographic data.</p><button class="export" id="exportAll">⬇ Download all CSV, raw data and plots (ZIP)</button><p id="exportStatus" role="status" class="meta"></p></section>
+<section><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center"><div><h2 style="margin:0 0 5px;font-size:20px">Participant sessions</h2><div class="meta">Open study URL: <a href="/" target="_blank" rel="noreferrer">participant experiment</a>. No invitation required.</div></div><button class="primary" id="refresh">Refresh now</button></div><p class="meta" id="updated">Loading…</p><p id="error" role="status"></p><div class="scroll"><table><thead><tr><th>Session</th><th>Status</th><th>Batches</th><th>Accuracy</th><th>Precision</th><th>Validation passed</th><th>Last activity (UTC)</th><th>Export</th></tr></thead><tbody id="rows"></tbody></table></div></section>
+<p class="meta">Access expires after 30 minutes. Closing or refreshing this page discards your browser-held credentials. The completed count measures submitted sessions, not distinct humans, because no login or identity check is required of participants.</p>
+</main></div>
+<script>
+'use strict';
+// Researcher token deliberately exists ONLY in this JavaScript execution context.
+// Never put it in cookie, localStorage, sessionStorage or URL. Reload/close requires password.
+let researcherToken='',busy=false,refreshTimer=null;
+const $=id=>document.getElementById(id);
+function authorization(){return {'Authorization':'Bearer '+researcherToken};}
+async function getPrivate(path){const r=await fetch(path,{headers:authorization(),cache:'no-store'});if(r.status===401){signOut();throw new Error('Session expired. Sign in again.');}return r;}
+function cell(row,value){const td=document.createElement('td');td.textContent=String(value??'—');row.append(td);return td;}
+function signOut(){researcherToken='';$('dashboardView').hidden=true;$('loginView').hidden=false;$('password').value='';if(refreshTimer)clearInterval(refreshTimer);refreshTimer=null;}
+$('loginForm').addEventListener('submit',async event=>{
+ event.preventDefault();const button=$('loginBtn');button.disabled=true;$('loginError').textContent='';
+ try{const password=$('password').value;const result=await fetch('/admin/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password}),cache:'no-store'});$('password').value='';if(!result.ok)throw new Error(result.status===429?'Too many attempts. Try again later.':'Incorrect password');const data=await result.json();researcherToken=data.token;$('loginView').hidden=true;$('dashboardView').hidden=false;await refresh();refreshTimer=setInterval(()=>{if(document.visibilityState==='visible')refresh();},20000);}
+ catch(e){$('loginError').textContent=e.message;}finally{button.disabled=false;}
+});
+// Dashboard counts come from server records, not from a counter saved in the browser.
+async function refresh(){if(!researcherToken||busy)return;busy=true;$('refresh').disabled=true;
+ try{const response=await getPrivate('/admin/api/sessions');if(!response.ok)throw new Error('Unable to load dashboard ('+response.status+')');const data=await response.json();const records=data.sessions||[], counts=data.counts||{};
+ $('total').textContent=data.total_sessions??0;$('submitted').textContent=counts.submitted??0;$('incomplete').textContent=counts.incomplete??0;$('uploading').textContent=counts.uploading??0;
+ $('updated').textContent='Updated '+new Date().toLocaleTimeString()+' · '+data.shown+' shown (latest 250)';$('error').textContent='';$('rows').replaceChildren();
+ for(const rec of records){const tr=document.createElement('tr');cell(tr,rec.session_id.slice(0,12)+'…');const status=cell(tr,rec.status);status.className='pill '+rec.status;cell(tr,rec.batches);const metric=(px,deg)=>typeof px==='number'?px.toFixed(0)+' px'+(typeof deg==='number'?' / '+deg.toFixed(2)+'°':''):'—';cell(tr,metric(rec.metrics?.accPx,rec.metrics?.accDeg));cell(tr,metric(rec.metrics?.precPx,rec.metrics?.precDeg));cell(tr,rec.validation_passed===true?'Yes':rec.validation_passed===false?'No':'—');cell(tr,rec.last_activity||'—');const td=document.createElement('td'),button=document.createElement('button');button.className='link';button.textContent='CSV + plots ZIP';button.onclick=()=>download('/admin/api/sessions/'+encodeURIComponent(rec.session_id)+'/download','webgazer_session_'+rec.session_id+'.zip');td.append(button);tr.append(td);$('rows').append(tr);}
+ if(!records.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=8;td.textContent='No study data submitted yet.';tr.append(td);$('rows').append(tr);}}
+ catch(e){$('error').textContent=e.message;}finally{busy=false;$('refresh').disabled=false;}
+}
+// ZIP downloads use the researcher token; participants cannot call these routes.
+async function download(path,filename){const status=$('exportStatus');status.textContent='Preparing protected ZIP export…';$('exportAll').disabled=true;
+ try{const response=await getPrivate(path);if(!response.ok)throw new Error('Export failed ('+response.status+')');const blob=await response.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);status.textContent='ZIP export created successfully.';}
+ catch(e){status.textContent=e.message;}finally{$('exportAll').disabled=false;}}
+$('exportAll').onclick=()=>download('/admin/api/export-all','webgazer_all_sessions_csv_plots_raw.zip');
+$('refresh').onclick=refresh;$('logout').onclick=signOut;
+window.addEventListener('pagehide',signOut);
+window.addEventListener('pageshow',event=>{if(event.persisted)signOut();});
+</script></body></html>
