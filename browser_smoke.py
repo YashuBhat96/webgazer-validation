@@ -11,9 +11,9 @@ mock_storage="const __mockStorage=new Map();window.__mockSession={getItem:k=>__m
 up=(base/'upload.js').read_text().replace('sessionStorage.', 'root.__mockSession.')
 src=src.replace('<script src="./upload.js"></script>', '<script>'+mock_storage+up+'</script>')
 src=src.replace('})();\n</script>\n</body>', '''window.__audit={
- getSearchTrialCount:()=>SEARCH_TRIALS,makeTrial, pointStats,checkOutcome,computeResults,needPass,scoreStream,scoreSearch,saveSearch,saveSession,saveQuality,saveKinematics,
+ getSearchTrialCount:()=>SEARCH_TRIALS,makeTrial, pointStats,computeResults,needPass,scoreStream,scoreSearch,saveSearch,saveSession,saveQuality,saveKinematics,
  enableMockSubmit:()=>{$('#instruct').classList.remove('on');show('done');$('#submitStudyData').disabled=false;StudyUpload.configured=true;StudyUpload.status.ready=true;StudyUpload.complete=async()=>({status:'acknowledged',session_id:'mock'});},
- syntheticBadCheck:()=>{const rs=[0,0,0,0,400].map((err,i)=>({i:i+1,accPx:err,precPx:1,usable:true,reasons:[]}));checkOutcome(rs,{nGot:100,nNull:0,interruptedN:0});return checkRuns.at(-1).pass;},
+ syntheticBadCheck:()=>{const pts=[0,0,0,0,400].map(err=>({usable:true,reasons:[],accuracyMeanPx:err,accuracyDeg:err}));return GazeQuality.screenCheck(pts).pass;},
  emptySearch:()=>{searchTrials=[];scoreSearch();return lastSearch.rocByDur[100].auc;},
  getState:()=>({passed,calibrated,lastSummary}),setState:()=>{calibrated=true;passed=true;},
  seedRaw:()=>{recording=true;pid='LOCALSESSION';t0=0;pxPerCm=40;distCm=60;distSource='tape measure';sessionLog=[{t:100,phase:'validate',ev:'gaze',taskId:'main_1',attempt:1,targetX:100,targetY:100,x:101,y:100,rawX:101,rawY:100,smX:101,smY:100,w:1440,h:900,d:60}];},
@@ -37,6 +37,10 @@ async def main():
   assert not await page.locator('#p-demo').evaluate('(x)=>x.classList.contains("on")'), 'experience yes/no required'
   await page.locator('input[name=eyeTrackerExperience][value=no]').check()
   await page.fill('#participantName','')
+  await page.click('#toDemo')
+  assert not await page.locator('#p-demo').evaluate('(x)=>x.classList.contains("on")'), 'name and consent required'
+  await page.fill('#participantName','Test Participant')
+  await page.locator('#consentAgree').check()
   assert await page.locator('#pid').count()==0, 'visible participant ID field should be removed'
   assert await page.locator('#operatorRole').count()==0, 'operator selector should be removed'
   assert await page.locator('input[name=demoGender]').count()==0, 'gender selector should be removed'
@@ -52,7 +56,7 @@ async def main():
   more=await page.evaluate('''() => {let good=0;for(let i=0;i<100;i++) good+=!!window.__audit.makeTrial();return good;}''')
   print('Layouts at 1280x720:',more,'/100')
   await page.set_viewport_size({'width':1440,'height':900})
-  assert await page.evaluate('window.__audit.getSearchTrialCount()') == 25, 'visual search must use original 25 rounds'
+  assert await page.evaluate('window.__audit.getSearchTrialCount()') == 50, 'visual search must use 50 rounds'
   assert not await page.evaluate('window.__audit.needPass()')
   assert await page.evaluate('window.__audit.syntheticBadCheck()') is False
   assert await page.evaluate('window.__audit.setSearch()') == 1
@@ -76,7 +80,7 @@ async def main():
   await page.click('#submitStudyData')
   await page.wait_for_function("document.getElementById('doneSaved').textContent.includes('Submission confirmed')")
   assert await page.locator('#submitStudyData').inner_text()=='DATA SUBMITTED ✓'
-  print('Browser smoke PASS: no participant ID, experience yes/no, large submit control, state gate, rendered metrics, search scoring, session JSON and search CSV downloads, bad check, empty search, 300/300 18-item trials')
+  print('Browser smoke PASS: consent, 50 trials, no participant ID, experience yes/no, large submit control, state gate, rendered metrics, search scoring, session JSON and search CSV downloads, bad check, empty search, 300/300 18-item trials')
   print('Page errors:',errs)
   assert not errs,errs
   await b.close()

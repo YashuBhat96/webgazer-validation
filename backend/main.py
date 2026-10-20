@@ -194,7 +194,7 @@ class CompleteRequest(BaseModel):
 
 
 class BatchRequest(BaseModel):
-    kind: Literal['setup_failure', 'setup_complete', 'calibration_check', 'task_aborted', 'validation_complete', 'finish', 'incomplete_finish', 'kinematic_samples', 'movement_candidates', 'analysis_manifest', 'periodic_gaze', 'search_aborted', 'search_trial', 'search_complete']
+    kind: Literal['consent', 'setup_failure', 'setup_complete', 'calibration_check', 'task_aborted', 'validation_complete', 'finish', 'incomplete_finish', 'kinematic_samples', 'movement_candidates', 'analysis_manifest', 'periodic_gaze', 'search_aborted', 'search_trial', 'search_complete']
     build: str = Field(max_length=120)
     created_at: str = Field(max_length=50)
     data: dict
@@ -259,6 +259,13 @@ async def batch(session_id: str, seq: int, request: Request, authorization: str 
         payload = BatchRequest.model_validate_json(body)
     except Exception as exc:
         raise HTTPException(422, 'Invalid batch JSON') from exc
+    # Consent is recorded as the first upload for each session, not inferred from a click later.
+    if seq == 0 and payload.kind != 'consent':
+        raise HTTPException(422, 'First batch must contain consent acknowledgment')
+    if payload.kind == 'consent':
+        consent = payload.data
+        if seq != 0 or consent.get('agreed') is not True or not isinstance(consent.get('typed_name'), str) or not consent['typed_name'].strip() or not consent.get('version') or not consent.get('acknowledged_at'):
+            raise HTTPException(422, 'Consent record missing or incomplete')
     key = f'sessions/{sid}/batches/{seq:06d}.json.gz'
     if object_exists(f'sessions/{sid}/completed.json.gz') and not object_exists(key):
         raise HTTPException(409, 'Session already submitted. New batches cannot be appended.')
@@ -298,6 +305,9 @@ def complete(session_id: str, req: CompleteRequest, authorization: str | None = 
     missing=next((n for n in range(req.last_sequence+1) if n not in present),None)
     if missing is not None:
         raise HTTPException(409, f'Upload incomplete: missing batch {missing}')
+    consent_meta=object_exists(f'{prefix}000000.json.gz')
+    if not consent_meta or consent_meta.get('Metadata', {}).get('kind') != 'consent':
+        raise HTTPException(409, 'Consent acknowledgment has not arrived')
     last_meta=object_exists(f'{prefix}{req.last_sequence:06d}.json.gz')
     if not last_meta or last_meta.get('Metadata', {}).get('kind') not in ('finish','incomplete_finish'):
         raise HTTPException(409, 'Cannot finalize: the final study checkpoint has not arrived')

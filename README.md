@@ -13,7 +13,7 @@ The experiment includes the following tasks:
 3. Thirteen calibration targets used to provide training positions to WebGazer.
 4. Five independent target locations to check calibration quality.
 5. Twelve validation targets to measure gaze error, precision, and missing data.
-6. An optional visual search task with 25 trials, two E targets, and 16 distractors in each trial.
+6. An optional visual search task with 50 trials, two E targets, and 16 distractors in each trial.
 7. A final screen where the participant chooses when to submit the study data.
 
 Calibration and validation are kept separate. WebGazer uses the calibration positions to learn a relationship between eye features and screen coordinates. The validation targets are used to evaluate its predictions. These checks assume that participants follow the instructions and look at the intended target.
@@ -44,7 +44,7 @@ The research dashboard is separately password protected. It reports received and
 
 ## Data privacy and research status
 
-Camera processing takes place in the participant's browser. The application is designed to submit gaze records and study responses, not webcam recordings. Optional names and study responses can still identify participants, and collected data must be handled under the relevant research consent and data security procedures.
+Camera processing takes place in the participant's browser. The application is designed to submit gaze records and study responses, not webcam recordings. Typed consent names and study responses can identify participants, and collected data must be handled under the relevant research consent and data security procedures.
 
 This software has passed code tests and simulated browser tests, but it still requires full camera, upload, security, and multi participant testing in a live deployment. The gaze estimates are not independently verified against a reference eye tracker. The optional visual search task and calculated movement events should be interpreted with those limitations in mind.
 
@@ -63,3 +63,11 @@ See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for library attribution.
 ## License
 
 Project source code is distributed under the **GNU General Public License, version 3 (GPLv3)**. See [LICENSE](LICENSE). The included WebGazer bundle remains subject to the original WebGazer and bundled dependency notices. Research data are not part of the open source distribution.
+
+## Study procedure (October 2026 version)
+
+The participant sees a short privacy notice and gives an explicit typed-name and checkbox acknowledgment before starting setup or enabling the camera. Webcam imagery is used in the browser for eye feature extraction and is not intentionally retained or uploaded. The study saves the consent acknowledgment in the submission record.
+
+WebGazer learns from 12 calibration targets arranged as a 4 × 3 grid. Each target appears for 2,000 ms followed by 250 ms without a target. To avoid evaluating the model at exactly the locations used to train it, the accuracy and precision task uses a **separate** 12 target 4 × 3 grid. Its targets appear for 2,000 ms followed by a 250 ms blank interval, with the first 100 ms excluded when calculating accuracy and precision. The visual search task contains 50 trials, each with two correct-facing targets and 16 distractors.
+
+This follows the main measurement tasks in Brand et al. (2021), while substituting WebGazer for the GP3 hardware and adding a guided browser interface. Gaze and derived fixations or saccades are **estimates**. Screening thresholds are pilot criteria, not validated WebGazer standards. A completed study upload requires a consent record and participant action on the final submit button.

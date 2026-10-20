@@ -212,13 +212,18 @@
       <div class="panel on" id="p-welcome">
         <p class="eyebrow">Webcam eye tracking</p>
         <h1>Gaze Check</h1>
-        <p>This uses your webcam to work out where you're looking on the screen. The accuracy check takes several minutes including setup; the optional 25 round visual search takes longer:
-           a short setup, a camera check, a 30-second calibration and a 30-second accuracy check.
-           The live webcam video is processed in your browser and is not intentionally uploaded by this page. Exports include gaze positions, timing, study visit type, device information, and optional answers. Do not begin without your study's consent procedure.</p>
+        <p>Welcome to the WebGazer eye tracking validation study. You will set up your webcam, complete a 12 point calibration, look at 12 targets for the accuracy check, and complete a 50 trial letter search task.</p>
+        <div class="okbox" style="margin:16px 0" role="note" aria-label="Study privacy notice">
+          <b>Privacy notice</b>
+          <p style="margin:7px 0">Webcam images are used temporarily in your browser to estimate where you are looking. <b>We do not save or upload webcam photos, video, or face images.</b> The study collects predicted gaze positions, timestamps, calibration and validation measurements, target positions, clicks and response times, browser and device information, and any questionnaire answers you provide.</p>
+          <p style="margin:7px 0">Results are saved temporarily in your browser during the task. They are sent over HTTPS to the study server only when you choose <b>Submit Study Data</b>. The research team can view and export those records in a password protected dashboard. You may stop participating at any time. If you do not submit, do not press the final submission button.</p>
+          <p style="margin:7px 0">Typing your name and checking the box below acknowledges that you read this information and agree to participate and submit the study data. This short notice is intended for an IRB approved study; it does not replace any longer consent materials required by the study protocol.</p>
+        </div>
         <p class="okbox" id="needTape"><b>You’ll need:</b> a bank or ID card (to measure your screen) <span id="needTapeWhat">and a tape measure or ruler</span> (to measure how far you sit from the camera). At the end, press the large Submit Study Data button to send your records to the research server. If this is a local pilot, download a backup instead.</p>
-        <div class="field"><label for="participantName">Name (optional)</label>
-          <input id="participantName" class="wide" type="text" maxlength="100" placeholder="You may leave this blank" autocomplete="off" spellcheck="false">
-          <div class="hint" style="margin-top:6px">You do not need to provide a name. If entered, it will be included in the research submission. The system creates a separate study session ID automatically.</div></div>
+        <div class="field"><label for="participantName">Type your name to confirm consent</label>
+          <input id="participantName" class="wide" type="text" maxlength="100" placeholder="Your name" autocomplete="off" spellcheck="false" required>
+          <div class="hint" style="margin-top:6px">Your name and consent acknowledgment are included in the study submission. A random session ID is used for gaze files.</div></div>
+        <div class="field"><label class="opt" for="consentAgree"><input type="checkbox" id="consentAgree" required><span>I have read the privacy and study information above and agree to participate and submit the data described.</span></label></div>
         <div class="field"><label id="lblExperience">Have you used an eye tracker before?</label>
           <div class="seg" role="radiogroup" aria-labelledby="lblExperience">
             <label><input type="radio" name="eyeTrackerExperience" value="yes"><span>Yes</span></label>
@@ -234,7 +239,7 @@
           <span class="status" aria-live="polite"><span class="dot-ind wait" id="modelDot"></span><span id="modelMsg">Loading the eye tracker…</span></span>
         </div>
         <div class="errbox" id="modelErr"></div>
-        <div class="row"><button class="btn" id="toDemo">Next: demographic questions</button></div>
+        <div class="row"><button class="btn" id="toDemo">I agree: continue to demographic questions</button></div>
       </div>
 
       <div class="panel" id="p-demo">
@@ -377,7 +382,7 @@
         <details class="more"><summary>Advanced options</summary>
           <label class="opt"><input type="checkbox" id="optSound" checked><span>Play a soft chime when I move out of position</span></label>
           <label class="opt"><input type="checkbox" id="optTape"><span>Ask for the viewing distance measured with a tape measure <span class="hint">(needed for reliable results in degrees; off = camera estimate)</span></span></label>
-          <label class="opt" hidden><input type="checkbox" id="optSmooth" disabled><span>Smooth the gaze signal <span class="hint">(used for the quick check and the results shown; raw and smoothed gaze are both saved either way)</span></span></label>
+          <label class="opt" hidden><input type="checkbox" id="optSmooth" disabled><span>Smooth the gaze signal <span class="hint">(used for results shown; raw and smoothed gaze are both saved either way)</span></span></label>
         </details>
         <p class="hint" style="margin-top:16px">When you press the button, your browser asks to use the camera. Choose <b>Allow</b>.</p>
         <div class="row" style="margin-top:12px">
@@ -487,7 +492,7 @@
       <p class="note" id="resNote"></p>
       <div class="row">
         <button class="btn" id="toSearch">Next: search task</button>
-        <button class="btn ghost" id="reCalFromRes">Recalibrate</button><button class="btn ghost" id="toExp">Finish task</button>
+        <button class="btn ghost" id="reCalFromRes">Recalibrate</button><button class="btn ghost" id="toExp">Finish early (incomplete session)</button>
       </div>
       <div class="row tight">
         <button class="btn ghost small" id="gazeToggle" aria-pressed="false">Show my gaze</button>
@@ -501,7 +506,7 @@
         </div>
         <div class="sendbox"></div>
       </div>
-      <p class="cite">WebGazer validation protocol inspired by Brand, Diamond, Thomas &amp; Gilbert-Diamond (2021), <em>Behavior Research Methods, 53</em>(4), 1502–1514. Our pilot uses a 12-point 4×3 grid, 2000 ms displays, 250 ms blank intervals, and excludes the first 300 ms. These parameters are not claimed to be identical to the published protocol. Primary accuracy is mean gaze offset and primary precision is RMS spatial dispersion; sample-level error and successive-point RMS are also exported.
+      <p class="cite">WebGazer protocol adapted from Brand, Diamond, Thomas &amp; Gilbert-Diamond (2021), <em>Behavior Research Methods, 53</em>(4), 1502–1514. The 12-point accuracy task uses a 4×3 grid, 2000 ms displays, 250 ms blank intervals, and excludes the first 100 ms. Calibration uses a separate 12-point WebGazer training grid. The visual search task has 50 trials. The webcam implementation is not an exact replication of the GP3 hardware protocol. Primary accuracy is mean gaze offset and primary precision is RMS spatial dispersion; sample-level error and successive-point RMS are also exported.
         Viewing distance: the participant's tape measurement when given; otherwise estimated from the distance between the eyes in WebGazer's face mesh (average adult interpupillary distance, assumed camera field of view).</p>
     </div></div>
   </section>
@@ -527,8 +532,8 @@
       </details>
       <p class="note" id="sresNote"></p>
       <div class="row">
-        <button class="btn" id="toExp2">Finish task</button>
-        <span class="hint">Each study session includes one 25 trial search task.</span>
+        <button class="btn" id="toExp2">Finish session</button>
+        <span class="hint">Each study session includes one 50 trial search task.</span>
         <button class="btn ghost" id="backRes">Back to accuracy results</button>
       </div>
       <div class="group">
@@ -664,12 +669,12 @@ const DIST_TOL = 8;            // cm of drift from the starting distance before 
 const GRADE = { accDeg:[3,6], precDeg:[3,6], accPx:[110,220], precPx:[110,220] };  // [good, fair] upper limits; above fair = poor
 const DIST_MIN = 50, DIST_MAX = 70;   // cm, webcam to eye: participants must sit in this range (checked on the tape measurement)
 const PASS_MIN_VALID = 75;            // observed callback validity, distinct from time coverage            // % of frames with a gaze estimate needed to pass the check
-const MAX_ATTEMPTS = 3;               // failed calibration checks before "Continue anyway" is offered
-const CHECK_POINTS = [[.5,.5],[.2,.2],[.8,.2],[.2,.8],[.8,.8]];   // quick calibration check before the tasks (same timing as the 12-point task)
+// Validation is assessed at the separate 12 target task, not through an extra 5 point check.
+const CONSENT_VERSION = 'webgazer-consent-2026-10-20-v1';
 const CAM_W = 400;
 const QUALITY=GazeQuality.CFG;
 // This is the existing saved build label. It is metadata, not the current ZIP name.
-const STUDY_BUILD='webgazer-validation-2.3-manual-submit';
+const STUDY_BUILD='webgazer-validation-2.6-brand-design-consent';
 let activeTaskId='', activeTargetX=null, activeTargetY=null, activeAttempt=0, validationAttempts=[], runInterrupted=false;             // camera preview width (px)
 
 /* ============================================================
@@ -727,9 +732,9 @@ let latest=null, liveDot=false, collecting=false, curSamples=[], curNulls=[], ab
 let sx=null, sy=null;                          // gaze used for the check and on-screen results (raw or smoothed, per the setting)
 let ssx=null, ssy=null;                        // smoothed stream, always computed (SMOOTH_ALPHA), so both are recorded
 let emaAlpha=SMOOTHING?SMOOTH_ALPHA:1, kalmanOn=USE_KALMAN, soundOn=true, dispX=null, dispY=null;
-let sessionLog=[], recording=false, phase='setup', t0=0, sessionUnixStart=Date.now(), pid='anon', participantName='', experience='', studyVisit='pilot', unsaved=false, recoveryMode=false, pendingHadFinish=false;
+let sessionLog=[], recording=false, phase='setup', t0=0, sessionUnixStart=Date.now(), pid='anon', participantName='', experience='', consentRecord=null, studyVisit='pilot', unsaved=false, recoveryMode=false, pendingHadFinish=false;
 let pxPerCm=null, distCm=null, distSource='camera estimate', anchorEstCm=null;
-let paused=false, pauseCount=0, calibrated=false, calRuns=0, checkRuns=[], failedChecks=0, passed=false, continuedAnyway=false, valKind='main', calViewport=null, viewportChanged=false;
+let paused=false, pauseCount=0, calibrated=false, calRuns=0, checkRuns=[], passed=false, valKind='main', calViewport=null, viewportChanged=false;
 let lastSummary=null;
 let searchTrials=[], curTrial=null, searchActive=false, lastSearch=null, searchHasRun=false;
 let trackerOn=false, trackerHooked=false, modelReady=false, modelError=null;
@@ -785,16 +790,23 @@ function setPanel(id){ document.querySelectorAll('#s-setup .panel').forEach(p=>p
 document.querySelectorAll('[data-panel]').forEach(b=>b.onclick=()=>setPanel(b.dataset.panel));
 $('#toDemo').onclick=async()=>{
   participantName=$('#participantName').value.trim();
+  if(!participantName || !$('#consentAgree').checked){
+    $('#inviteErr').textContent='Please type your name and check the consent box before continuing.';
+    $('#inviteErr').classList.add('on'); return;
+  }
   experience=radioVal('eyeTrackerExperience');
   if(!experience){$('#inviteErr').textContent='Please select Yes or No for previous eye tracker experience.';$('#inviteErr').classList.add('on');return;}
   try {
     const current=await StudyUpload.start(); // Creates an anonymous capability, not a gaze-data upload; checkpoints remain local.
     pid=current.session_id; studyVisit=current.visit||'pilot';
+    consentRecord={version:CONSENT_VERSION,agreed:true,typed_name:participantName,acknowledged_at:new Date().toISOString(),notice:'participant_webcam_and_gaze_data_notice'};
     if(current.needsResume){
       pendingHadFinish=current.hasFinish;$('#resumeRow').hidden=false;
       $('#inviteErr').textContent='This browser has a previously saved, unsubmitted session. Submit those records before starting another session. An interrupted session will be marked incomplete.';
       $('#inviteErr').classList.add('on');return;
     }
+    // Consent is batch zero, stored locally until the final submit button is used.
+    await StudyUpload.enqueue('consent',consentRecord,STUDY_BUILD);
     $('#resumeRow').hidden=true;$('#inviteErr').classList.remove('on');setPanel('p-demo');
   } catch(e){
     $('#inviteErr').textContent=e.message;
@@ -806,7 +818,7 @@ $('#resumeSubmission').onclick=async()=>{
   recoveryMode=true;
   if(!pendingHadFinish)await StudyUpload.enqueue('incomplete_finish',{
    recovery_reason:'session_interrupted_before_finish',recovered_at:new Date().toISOString(),
-   eye_tracker_experience:experience,participant_details:{optional_name:participantName}},STUDY_BUILD);
+   eye_tracker_experience:experience,participant_details:{consent_name:participantName}},STUDY_BUILD);
   show('done');$('#submitStudyData').disabled=false;
   $('#doneSaved').textContent=pendingHadFinish?
    'Previously completed local data recovered. Press the large button to send them to the research server.':
@@ -1229,8 +1241,10 @@ async function gate(){ if(!paused) return false; while(paused&&!aborted) await s
 /* ============================================================
    3 · CALIBRATION (the dot moves by itself; nothing to click)
    ============================================================ */
-const CAL=[[.08,.08],[.5,.08],[.92,.08],[.08,.5],[.5,.5],[.92,.5],[.08,.92],[.5,.92],[.92,.92],[.3,.3],[.7,.3],[.3,.7],[.7,.7]];
-const CAL_MS=2000, CAL_SETTLE=300, CAL_SAMPLES=40, RESUME_SETTLE=700;   // 40 snapshots per dot, 520 in all (WebGazer keeps up to 700)
+// Model training locations follow a 4 by 3 grid, slightly offset from validation locations.
+// Distinct coordinates help keep validation measurements independent of model training.
+const CAL=[[.18,.22],[.42,.22],[.58,.22],[.82,.22],[.18,.50],[.42,.50],[.58,.50],[.82,.50],[.18,.78],[.42,.78],[.58,.78],[.82,.78]];
+const CAL_MS=2000, CAL_SETTLE=300, CAL_SAMPLES=40, CAL_ITI=250, RESUME_SETTLE=700;
 function hud(which,msg,frac){ $('#'+which+'Hud').textContent=msg; $('#'+which+'Bar').style.width=Math.round(frac*100)+'%'; }
 function clearStage(st){ st.querySelectorAll('.dot,.ring,.vtarget,.count').forEach(e=>e.remove()); }
 async function countdown(st,my,label){
@@ -1241,14 +1255,14 @@ async function countdown(st,my,label){
 function showCalIntro(){
   phase='instructions';
   instruct('Step 3 of 5','Follow the dot',
-    `<p>A dot appears in ${CAL.length} places, one after another. Keep your eyes on it until it moves on. It moves by itself, so there\u2019s nothing to click. This will take about 30 seconds.</p><p class="hint">Stay where you are: keep your head still and at the same distance. Press Esc if you need to stop.</p>`,
+    `<p>A dot appears in ${CAL.length} places, one after another. Keep your eyes on it until it moves on. It moves by itself, so there\u2019s nothing to click. Each point is shown for 2 seconds, followed by a short blank screen. This takes about 27 seconds.</p><p class="hint">Stay where you are: keep your head still and at the same distance. Press Esc if you need to stop.</p>`,
     [{label:'Start calibration',primary:true,fs:true,fn:runCalibration},{label:'Back to camera check',fn:runDistance}]);
 }
 // Show calibration targets and send their known positions to WebGazer for learning.
 async function runCalibration(){
   aborted=false; const my=++runId; const stop=()=>aborted||my!==runId;
   phase='calibrate'; show('cal'); placeCam(null); setLiveDot(false);
-  passed=false;continuedAnyway=false;lastSummary=null;lastSearch=null;
+  passed=false;lastSummary=null;lastSearch=null;
   if(!searchHasRun)searchTrials=[];
   ssx=null;ssy=null;sx=null;sy=null;dispX=null;dispY=null;
   const st=stages.cal; clearStage(st);
@@ -1267,72 +1281,50 @@ async function runCalibration(){
       c.style.transition=`stroke-dashoffset ${CAL_MS-CAL_SETTLE}ms linear`; c.style.strokeDashoffset='0'; };
     activeTaskId=`cal_${i+1}`;activeTargetX=x;activeTargetY=y;activeAttempt=1;
     hud('cal',`Point ${i+1} of ${CAL.length}`,i/CAL.length); logEvent('cal_target',x,y);
+    // Keep the target on screen for 2000 ms. Interruptions invalidate the point.
+    const pointStart=now(), pointEnd=pointStart+CAL_MS;
     await sleep(CAL_SETTLE); ring();
-    let k=0; const step=(CAL_MS-CAL_SETTLE)/CAL_SAMPLES;
-    while(k<CAL_SAMPLES){
+    let k=0, nextSample=now(), interrupted=false;
+    const sampleStep=(CAL_MS-CAL_SETTLE)/CAL_SAMPLES;
+    while(now()<pointEnd){
       if(stop()) return;
-      if(await gate()){ if(stop()) return; await sleep(RESUME_SETTLE); ring(); }
-      if(faceOK()){ webgazer.recordScreenPosition(x,y,'click'); k++; }
-      await sleep(step);
+      if(paused || !faceOK()){interrupted=true;break;}
+      if(now()>=nextSample){webgazer.recordScreenPosition(x,y,'click');k++;nextSample+=sampleStep;}
+      await sleep(Math.max(1,Math.min(15,pointEnd-now())));
     }
-    dot.classList.add('small'); await sleep(120); dot.remove(); svg.remove();
+    dot.remove(); svg.remove();
+    if(interrupted || k<12){
+      logEvent('calibration_point_failed',x,y,{sampleN:k});
+      calibrated=false;
+      phase='instructions';
+      instruct('Calibration interrupted','Please recalibrate',
+        '<p>The camera could not collect enough eye positions for one calibration point. Check your face position and lighting. The next attempt will start calibration from the beginning.</p>',
+        [{label:'Restart 12 point calibration',primary:true,fs:true,fn:runCalibration},{label:'Back to camera check',fn:runDistance}]);
+      return;
+    }
+    logEvent('cal_blank',null,null); await sleep(CAL_ITI);
   }
   if(stop()) return;
   activeTaskId='';activeTargetX=null;activeTargetY=null;activeAttempt=0;
   hud('cal','Done',1); calibrated=true; calRuns++; passed=false; logEvent('cal_done',0,0);
-  showCheckIntro();
+  showValIntro('Calibration complete. Now we will measure accuracy at separate locations.');
 }
 
 /* ============================================================
    4 · VALIDATION (Brand-inspired adaptation, not exact replication)
    ============================================================ */
 const V_COLS=[.10,.3667,.6333,.90], V_ROWS=[.12,.50,.88];
-// Explicit prototype timings; verify against Brand full methods before claiming close replication.
-// Do not treat the target transition as settled gaze. Primary analysis starts at 300ms.
-const DWELL=2000, ITI=250, PRUNE=QUALITY.analysisStartMs; // pilot adaptation; not claimed to replicate Brand timings
+// Brand-inspired task: 12 targets, 2 seconds each and a 250 millisecond blank interval.
+// Analysis excludes the first 100 milliseconds to allow a target-directed eye movement.
+const DWELL=2000, ITI=250, PRUNE=QUALITY.analysisStartMs;
 const FIND_MS=0;      // optional extra time before recording starts (not in Brand); 0 = Brand's timing
-function showCheckIntro(){
-  phase='instructions';
-  instruct('Step 3 of 5','Quick calibration check',
-    `<p>Before the tasks, a cross appears in ${CHECK_POINTS.length} places to check the calibration. Look at each one until it moves. About 12 seconds.</p><p class="hint">If the calibration isn\u2019t accurate enough, you\u2019ll recalibrate before going on. Stay where you are and keep your head still.</p>`,
-    [{label:'Start the quick check',primary:true,fs:true,fn:()=>runValidation('check')}]);
-}
-// A calibration check looks at every point, not just the average error.
-function checkOutcome(results,st){
-  const quality=GazeQuality.screenCheck(results.map(r=>({
-    usable:r.usable, reasons:r.reasons||[], accuracyMeanPx:r.accPx,
-    accuracyDeg:r.accPx!=null&&distSource==='tape measure'?pxToDeg(r.accPx):null
-  })),{minUsablePoints:CHECK_POINTS.length});
-  const ok=results.filter(r=>r.usable);
-  const accPx=ok.length?mean(ok.map(r=>r.accPx)):null, precPx=ok.length?mean(ok.map(r=>r.precPx)):null;
-  const accDeg=accPx!=null?pxToDeg(accPx):null, precDeg=precPx!=null?pxToDeg(precPx):null;
-  const validity=(st.nGot+st.nNull)>0?100*st.nGot/(st.nGot+st.nNull):0;
-  const pass=quality.pass && validity>=PASS_MIN_VALID && !viewportChanged && !st.interruptedN;
-  checkRuns.push({accPx,accDeg,precPx,precDeg,validity,quality,pass,points:results});
-  queueCheckpoint('calibration_check').catch(()=>{});
-  const shown=accDeg!=null?`${accDeg.toFixed(1)}°`:accPx!=null?`${Math.round(accPx)} px`:'no gaze data';
-  phase='instructions';
-  if(pass){ passed=true; continuedAnyway=false; showValIntro(`Calibration check passed (average error ${shown}, worst ${quality.maxError?.toFixed(1)} ${quality.unit}).`); return; }
-  passed=false; failedChecks++;
-  const why=viewportChanged?'The window changed size after calibration.':
-     st.interruptedN?'One or more points were interrupted.':validity<PASS_MIN_VALID?'Too many invalid callbacks.':
-     `Quality requirements not met: ${quality.reasons.join(', ')}. Mean error: ${shown}.`;
-  const tips='<p class="hint">Before trying again: sit 50–70 cm from the screen, get more light on your face, raise the camera to eye level, and keep your head still. Incomplete or interrupted points cannot pass.</p>';
-  if(failedChecks<MAX_ATTEMPTS){
-    instruct('Step 3 of 5','Recalibration needed',`<p>${esc(why)}</p>${tips}`,
-      [{label:'Recalibrate',primary:true,fs:true,fn:runCalibration},{label:'Back to camera check',fn:runDistance}]);
-  } else {
-    instruct('Step 3 of 5',`Quality check failed after ${failedChecks} tries`,
-      `<p>${esc(why)}</p><p>You may continue to the accuracy measurement to document a failure, but the search assessment will be locked until a calibration passes. This session remains flagged as a screen failure.</p>${tips}`,
-      [{label:'Recalibrate',primary:true,fs:true,fn:runCalibration},{label:'Measure quality anyway',fs:true,fn:()=>{continuedAnyway=true;showValIntro('');}},{label:'Back to camera check',fn:runDistance}]);
-  }
-}
 function showValIntro(passedMsg){
-  if(!passed&&!continuedAnyway){ showCheckIntro(); return; }
+  if(!calibrated){ showCalIntro(); return; }
   phase='instructions';
-  instruct('Step 4 of 5','Accuracy task',
-    (passedMsg?`<p class="okbox" style="margin:0 0 12px">\u2713 ${esc(passedMsg)}</p>`:'')+'<p>A cross appears in 12 places, one at a time. When it appears, find it and <b>keep looking at its centre</b> until it moves. Don\u2019t click anything. About 30 seconds.</p><p class="hint">This part measures how accurate the tracking is. Stay where you are and keep your head still.</p>',
-    [{label:'Start the accuracy task',primary:true,fs:true,fn:()=>runValidation('main')},{label:'Recalibrate first',fn:showCalIntro}]);
+  instruct('Step 4 of 5','Accuracy and precision assessment',
+    (passedMsg?`<p class="okbox" style="margin:0 0 12px">${esc(passedMsg)}</p>`:'')+
+    '<p>Look at each cross in the 12 point, 4 by 3 grid. Each cross appears for 2 seconds, followed by a blank screen for 250 milliseconds. Keep looking at its centre, without clicking. The first 100 milliseconds are excluded from the accuracy analysis.</p><p class="hint">This is a separate assessment, not another calibration. It takes approximately 27 seconds. Keep your head still.</p>',
+    [{label:'Start the 12 point assessment',primary:true,fs:true,fn:()=>runValidation('main')},{label:'Recalibrate first',fn:showCalIntro}]);
 }
 async function dwell(){
   const pc=pauseCount, tOn=now();
@@ -1347,16 +1339,14 @@ async function dwell(){
 }
 // Collect a new set of gaze samples at known targets to check prediction quality.
 async function runValidation(kind){
-  kind=kind==='check'?'check':'main'; valKind=kind;
+  kind='main'; valKind='main';
   if(!calibrated){showCalIntro();return;}
-  if(kind==='main'&&!passed&&!continuedAnyway){showCheckIntro();return;}
   aborted=false;runInterrupted=false;const my=++runId;const stop=()=>aborted||my!==runId;
-  phase=kind==='check'?'calibration_check':'validate'; show('val');placeCam(null);setLiveDot(false);
+  phase='validate'; show('val');placeCam(null);setLiveDot(false);
   webgazer.removeMouseEventListeners();
   if(calViewport&&(innerWidth!==calViewport.w||innerHeight!==calViewport.h))viewportChanged=true;
   const st=stages.val;clearStage(st);
-  const points=[];if(kind==='check')CHECK_POINTS.forEach(p=>points.push(p.slice()));
-  else V_ROWS.forEach(fy=>V_COLS.forEach(fx=>points.push([fx,fy])));
+  const points=[]; V_ROWS.forEach(fy=>V_COLS.forEach(fx=>points.push([fx,fy])));
   for(let i=points.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[points[i],points[j]]=[points[j],points[i]];}
   hud('val','Get ready',0);await countdown(st,my,'Look at the cross');if(stop())return;
   const results=[],resultsRaw=[],resultsSm=[],intervals=[];let nGot=0,nNull=0,interruptedN=0;
@@ -1403,9 +1393,8 @@ async function runValidation(kind){
   }
   activeTaskId='';activeTargetX=null;activeTargetY=null;activeAttempt=0;
   if(stop())return;
-  hud('val','Done',1);logEvent(kind==='check'?'check_done':'val_done',0,0);
+  hud('val','Done',1);logEvent('val_done',0,0);
   const data={intervals,nGot,nNull,interruptedN,pauses:pauseCount-pc0,resultsRaw,resultsSm};
-  if(kind==='check'){checkOutcome(results,data);return;}
   computeResults(results,data);
 }
 function streamSummary(rs){ const ok=rs.filter(r=>r.usable!==false&&r.accPx!=null), m=k=>ok.length?mean(ok.map(r=>r[k])):null, D=v=>v!=null?pxToDeg(v):null;
@@ -1433,7 +1422,7 @@ function abortTask(reason){
   clearStage(stages.cal); clearStage(stages.val);
   if(where==='search'){ $('#searchArea').innerHTML=''; show(lastSummary?'res':'dist'); toast((reason||'Search task stopped')+'. Nothing from it was scored.'); return; }
   const btns=[];
-  if(where==='val'&&calibrated) btns.push({label:valKind==='check'?'Restart the quick check':'Restart the accuracy task',primary:true,fs:true,fn:()=>runValidation(valKind)});
+  if(where==='val'&&calibrated) btns.push({label:'Restart the accuracy task',primary:true,fs:true,fn:()=>runValidation('main')});
   btns.push({label:where==='cal'||!calibrated?'Restart calibration':'Recalibrate',primary:!btns.length,fs:true,fn:runCalibration});
   btns.push({label:'Back to camera check',fn:runDistance});
   phase='instructions';
@@ -1479,14 +1468,15 @@ function computeResults(results,st){
   const f=(v,d=0)=>v==null?'\u2014':v.toFixed(d);
   const [ga,ca,sa]=accDeg!=null?grade(accDeg,GRADE.accDeg):grade(accPx,GRADE.accPx);
   const [gp,cp,sp]=precDeg!=null?grade(precDeg,GRADE.precDeg):grade(precPx,GRADE.precPx);
-  const worst=ok.length===results.length&&screens.pass&&passed&&!viewportChanged?Math.max(sa,sp):2;
+  passed=screens.pass && !viewportChanged; // uses the independent 12 point measurement
+  const worst=ok.length===results.length&&passed?Math.max(sa,sp):2;
 
   let V=[['good','\u2713','Tracking looks good','You can move on.'],
            ['fair','!','Tracking is usable','Recalibrating may improve it: more light on your face, camera at eye level, head still.'],
            ['poor','!','Quality requirements not met','The session is saved as a failed screen, with point-specific reasons. Recalibrate before using the search assessment.']][worst];
-  if(continuedAnyway) V=[V[0],V[1],V[2],V[3]+' Note: the calibration check was not passed; you chose to continue anyway.'];
+
   $('#verdict').className='verdict '+V[0]; $('#verdictIc').textContent=V[1]; $('#verdictT').textContent=V[2]; $('#verdictP').textContent=V[3];
-  // the search task and experiments unlock only after a passed check; a failed check means recalibrating
+  // The 12 point validation screen, not an extra five-point check, determines screening quality.
 
   $('#metricGrid').innerHTML=`
     <div class="metric"><div class="k">Accuracy</div><div class="v mono">${f(accPx)}<span class="u">px</span></div><div class="sub">${accDeg!=null?accDeg.toFixed(2)+'\u00b0 visual angle'+(distSource!=='tape measure'?' (estimated)':''):'no distance, so px only'}</div><div class="sub">${xyLine(ax.accX,ax.accY,true)}</div><div class="sub ${ca}">${ga}</div></div>
@@ -1546,11 +1536,12 @@ async function finish(){
   $('#submitStudyData').disabled=true;
   $('#doneSaved').textContent='Saving the final local checkpoint…';
   try{
+    const completedTask=!!lastSummary && !!lastSearch && searchTrials.length===SEARCH_TRIALS;
     if(StudyUpload.configured){
       await queueKinematics();
-      await queueCheckpoint('finish');
+      await queueCheckpoint(completedTask?'finish':'incomplete_finish');
     }
-    $('#doneSaved').textContent=StudyUpload.configured?'Your data are ready to submit. Nothing has been sent to the research server yet.':
+    $('#doneSaved').textContent=StudyUpload.configured?(completedTask?'Your complete session is ready to submit. Nothing has been sent to the research server yet.':'Your session ended before all 50 search trials were completed. It will be submitted as INCOMPLETE. Nothing has been sent yet.'):
       'Local pilot mode: no research server is configured. Use Download a backup to save the data.';
     $('#submitStudyData').disabled=!StudyUpload.configured;
   }catch(e){
@@ -1638,8 +1629,8 @@ function saveSession(){
  if(!lastSummary)return false;
  const s=lastSummary;
  const pack={study_build:STUDY_BUILD,webgazer_version:'2.0.1',participant:pid,
-  generated_at:new Date().toISOString(),visit_type:studyVisit,eye_tracker_experience:experience,optional_name:participantName,session_outcome:s.screenQuality,
-  calibration_check_passed:passed,continued_without_pass:continuedAnyway,
+  generated_at:new Date().toISOString(),visit_type:studyVisit,eye_tracker_experience:experience,consent_name:participantName,session_outcome:s.screenQuality,
+  independent_validation_quality_passed:passed,consent:consentRecord,
   validation_usable_points:s.results.filter(r=>r.usable).length,
   measured_quality:{accuracy_mean_px:s.accPx,accuracy_deg:s.accDeg,precision_rms_px:s.precPx,
    precision_deg:s.precDeg,mean_time_coverage_pct:s.coverage,callback_valid_pct:s.validity,
@@ -1688,8 +1679,8 @@ function saveValidation(){ const s=lastSummary; if(!s)return false; const q=v=>`
   kv('camera_fov_deg_implied',impliedFov!=null?impliedFov.toFixed(1):'');
   kv('px_per_cm',s.pxPerCm||''); kv('screen_w',s.screenW); kv('screen_h',s.screenH); kv('fullscreen',s.fullscreen?'yes':'no');
   kv('viewport_changed_since_calibration',s.viewportChanged?'yes':'no'); kv('position_pauses',s.pauses); kv('calibration_runs',s.calRuns);
-  kv('smoothing',emaAlpha<1?'on':'off'); kv('ema_alpha',emaAlpha); kv('regression',REGRESSION); kv('kalman_filter',kalmanOn?'on':'off'); kv('calibration_points',CAL.length); kv('calibration_samples_per_point',CAL_SAMPLES); kv('calibration_check_passed',passed?'yes':continuedAnyway?'no (continued anyway)':'no'); kv('calibration_check_attempts',checkRuns.length);
-  kv('calibration_check_results',q(checkRuns.map((c,i)=>`${i+1}: ${c.accDeg!=null?c.accDeg.toFixed(2)+' deg':c.accPx!=null?Math.round(c.accPx)+' px':'no data'} ${c.pass?'pass':'fail'}`).join('; ')));
+  kv('smoothing',emaAlpha<1?'on':'off'); kv('ema_alpha',emaAlpha); kv('regression',REGRESSION); kv('kalman_filter',kalmanOn?'on':'off'); kv('calibration_points',CAL.length); kv('calibration_samples_per_point',CAL_SAMPLES);   kv('validation_quality_passed',passed?'yes':'no'); kv('independent_validation_points',V_COLS.length*V_ROWS.length);
+    kv('calibration_check_results','not applicable: no extra check');
   kv('calibration_check_rule',q(JSON.stringify(QUALITY)+'; callback validity >= '+PASS_MIN_VALID+'%; all check regions required; window unchanged'));
   kv('distance_rule_cm',`${DIST_MIN}-${DIST_MAX}`); kv('validation_target','cross with shrinking ring, 48 px, on the dark calibration background');
   kv('validation_grid_x_fractions',V_COLS.join(';')); kv('validation_grid_y_fractions',V_ROWS.join(';')); kv('validation_target_ms',FIND_MS+DWELL); kv('validation_blank_ms',ITI); kv('validation_pruned_ms',PRUNE); kv('validation_extra_find_ms',FIND_MS);
@@ -1755,14 +1746,14 @@ function queueCheckpoint(kind){
 async function persistCheckpoint(kind){
  if(!StudyUpload.configured||!StudyUpload.status.ready)return false;
  const untilLog=sessionLog.length,untilAttempts=validationAttempts.length,untilChecks=checkRuns.length,untilTrials=searchTrials.length;
- const batch={participant:pid,visit:studyVisit,eye_tracker_experience:experience,
+ const batch={participant:pid,visit:studyVisit,eye_tracker_experience:experience,consent_version:consentRecord?.version||null,
     gaze_events:sessionLog.slice(logUploadCursor,untilLog),
     attempts:validationAttempts.slice(attemptUploadCursor,untilAttempts),
     checks:checkRuns.slice(checkUploadCursor,untilChecks),
     search_trials:searchTrials.slice(searchUploadCursor,untilTrials),
-    validation_summary:kind==='validation_complete'||kind==='finish'?lastSummary:null,
-    search_summary:kind==='search_complete'||kind==='finish'?lastSearch:null,
-    participant_details:kind==='finish'?{optional_name:participantName,demographics:demo,device,vision,system:sysInfo,
+    validation_summary:['validation_complete','finish','incomplete_finish'].includes(kind)?lastSummary:null,
+    search_summary:['search_complete','finish','incomplete_finish'].includes(kind)?lastSearch:null,
+    participant_details:['finish','incomplete_finish'].includes(kind)?{consent_name:participantName,consent:consentRecord,demographics:demo,device,vision,system:sysInfo,
       screen_px_per_cm:pxPerCm,distance_cm:distCm,distance_source:distSource,
       age:demo.age||null,eye_tracker_experience:experience}:null,
     viewport:{w:innerWidth,h:innerHeight},recording_active:recording};
@@ -1784,7 +1775,7 @@ addEventListener('beforeunload',e=>{ if(unsaved){ e.preventDefault(); e.returnVa
    ============================================================ */
 $('#gazeToggle').onclick=()=>setLiveDot(!liveDot);
 const needPass=()=>{if(passed&&lastSummary&&lastSummary.screenQuality.pass&&!viewportChanged)return false;
- toast('This assessment requires a passed calibration and all usable validation points. Please recalibrate.',6000);return true;};
+ toast('The 12 point accuracy assessment did not meet the pilot quality criteria. You can recalibrate and retry.',6000);return true;};
 $('#toExp').onclick=finish;
 $('#toExp2').onclick=finish;
 $('#reCalFromRes').onclick=showCalIntro;
@@ -1799,8 +1790,8 @@ $('#finishBtn').onclick=finish;
    5b · ITEM-LEVEL VISUAL SEARCH (Brand-inspired adaptation)
    Engbert & Kliegl (2003) implemented inline, no extra libraries.
    ============================================================ */
-// The search task stays at 25 trials, matching the original experiment.
-const SEARCH_TRIALS=25;         // keep the 25 rounds specified in the original uploaded experiment
+// Brand's visual search component uses 50 trials. These are distinct from the 12 point validation task.
+const SEARCH_TRIALS=50;         // match Brand's 50 search trials; two targets and sixteen distractors per trial
 const SEARCH_MIN_DIST=125;   // dense layout: 18 items require sufficiently separated E centers      // min centre-to-centre spacing (px)
 const EK_LAMBDA=6;              // Engbert & Kliegl velocity threshold (SDs)
 const EK_MIN_SACC=2;            // min consecutive samples to count a saccade
@@ -2031,7 +2022,7 @@ function saveSearchTrials(){
  download(`gaze_search_trials_${pid}_${stamp()}.csv`,asCSV(cols,out));return true;
 }
 function showSearchIntro(){ phase='instructions';
-  instruct('Optional task','Find the letters',
+  instruct('Study task','Find the letters',
     '<p>You\u2019ll see a screen full of the letter \u201cE\u201d. Most face backwards, but <b>two face the normal way</b>. Find both and <b>click each one</b>. The next round starts as soon as you\u2019ve clicked both. There are '+SEARCH_TRIALS+' rounds and each can last up to 25 seconds. Use a large desktop display.</p><p class="hint">Can\u2019t find them? Press Space to skip a round. Esc stops the task.</p>',
     [{label:'Start the search task',primary:true,fs:true,fn:runSearch},{label:'Not now',fn:()=>show('res')}]); }
 $('#toSearch').onclick=()=>{ if(needPass()) return; showSearchIntro(); };

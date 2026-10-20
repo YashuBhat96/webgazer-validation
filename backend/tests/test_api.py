@@ -54,21 +54,24 @@ def test_public_page_and_open_session():
 def test_upload_dedup_complete_and_separation():
  sid,head=open_session()
  assert client.post('/api/sessions',headers=head,json={}).status_code==200
- base={'build':'v2.5','created_at':'2026-10-20T15:00:00Z','kind':'validation_complete',
+ base={'build':'v2.6','created_at':'2026-10-20T15:00:00Z','kind':'validation_complete',
        'data':{'gaze_events':[{'t':42,'rawX':101,'rawY':190,'phase':'validation'}],
        'validation_summary':{'accPx':80,'accDeg':1.2,'screenQuality':{'pass':True},
        'results':[{'accPx':120},{'accPx':75}]},'participant_details':{'optional_name':'Test'} }}
  url=f'/api/sessions/{sid}/batches/0'
- assert client.post(url,headers=head,json=base).json()['status']=='stored'
- assert client.post(url,headers=head,json=base).json()['status']=='already_stored'
- assert client.post(url,headers=head,json={**base,'data':{'x':4}}).status_code==409
+ consent={**base,'kind':'consent','data':{'agreed':True,'typed_name':'Test','version':'consent-v1','acknowledged_at':'2026-10-20T15:00:00Z'}}
+ assert client.post(url,headers=head,json=base).status_code==422  # no consent, no upload
+ assert client.post(url,headers=head,json=consent).json()['status']=='stored'
+ assert client.post(url,headers=head,json=consent).json()['status']=='already_stored'
+ assert client.post(url,headers=head,json={**consent,'data':{'x':4}}).status_code==422
  assert client.post(f'/api/sessions/{sid}/complete',headers=head,json={'last_sequence':0}).status_code==409
+ assert client.post(f'/api/sessions/{sid}/batches/1',headers=head,json=base).status_code==200
  finish={**base,'kind':'finish','data':{**base['data'], 'search_trials':[{'trial':1,'hit':True}]}}
- assert client.post(f'/api/sessions/{sid}/batches/1',headers=head,json=finish).status_code==200
- assert client.post(f'/api/sessions/{sid}/complete',headers=head,json={'last_sequence':1}).json()['status']=='acknowledged'
- assert client.post(f'/api/sessions/{sid}/batches/2',headers=head,json=base).status_code==409
+ assert client.post(f'/api/sessions/{sid}/batches/2',headers=head,json=finish).status_code==200
+ assert client.post(f'/api/sessions/{sid}/complete',headers=head,json={'last_sequence':2}).json()['status']=='acknowledged'
+ assert client.post(f'/api/sessions/{sid}/batches/3',headers=head,json=base).status_code==409
  other_sid,other_head=open_session()
- assert client.post(f'/api/sessions/{sid}/complete',headers=other_head,json={'last_sequence':1}).status_code==403
+ assert client.post(f'/api/sessions/{sid}/complete',headers=other_head,json={'last_sequence':2}).status_code==403
  assert client.post(f'/api/sessions/{other_sid}/batches/600',headers=other_head,json=base).status_code==400
  return sid
 

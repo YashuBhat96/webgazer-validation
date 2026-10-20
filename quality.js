@@ -5,7 +5,7 @@
   const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
   const sd=a=>a.length>1?Math.sqrt(mean(a.map(v=>(v-mean(a))**2))):null;
   const CFG=Object.freeze({
-    analysisStartMs:300, // avoids treating the first gaze transition as settled fixation
+    analysisStartMs:100, // Brand: omit the first 100 ms after each fixation target appears
     analysisEndMs:2000,
     minSamples:12,
     minCoveragePct:70,
