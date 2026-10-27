@@ -212,7 +212,7 @@
       <div class="panel on" id="p-welcome">
         <p class="eyebrow">Webcam eye tracking</p>
         <h1>Gaze Check</h1>
-        <p>Welcome to the WebGazer eye tracking validation study. You will set up your webcam, complete a 12 point calibration, look at 12 targets for the accuracy check, and complete a 50 trial letter search task.</p>
+        <p>Welcome to the WebGazer eye tracking validation study. You will set up your webcam, attempt a 12 point calibration, look at 12 targets for the accuracy check, and complete a 50 trial letter search task. Poor tracking accuracy does not prevent participation. We also retain calibration failures and incomplete measurements when you submit.</p>
         <div class="okbox" style="margin:16px 0" role="note" aria-label="Study privacy notice">
           <b>Privacy notice</b>
           <p style="margin:7px 0">Webcam images are used temporarily in your browser to estimate where you are looking. <b>We do not save or upload webcam photos, video, or face images.</b> The study collects predicted gaze positions, timestamps, calibration and validation measurements, target positions, clicks and response times, browser and device information, and any questionnaire answers you provide.</p>
@@ -491,7 +491,7 @@
       </details>
       <p class="note" id="resNote"></p>
       <div class="row">
-        <button class="btn" id="toSearch">Next: search task</button>
+        <button class="btn" id="toSearch">Next: search task (any accuracy)</button>
         <button class="btn ghost" id="reCalFromRes">Recalibrate</button><button class="btn ghost" id="toExp">Finish early (incomplete session)</button>
       </div>
       <div class="row tight">
@@ -578,7 +578,7 @@
       <p class="submit-result" id="doneSaved" role="status" aria-live="polite"></p>
       <div class="row"><button class="btn ghost" id="retryUpload" hidden>Try submitting again</button><button class="btn ghost" id="doneDl">Download a backup</button></div>
       <div class="sendbox"></div>
-      <p class="hint" style="margin-top:16px">Do not close this tab until you see a confirmed receipt or have saved the local backup. The name field is optional and not used for matching repeat visits.</p>
+      <p class="hint" style="margin-top:16px">Do not close this tab until you see a confirmed receipt or have saved the local backup. Calibration attempts, errors, and incomplete sessions are retained with their status.</p>
     </div></div>
   </section>
 
@@ -591,7 +591,9 @@
   <p class="hint" id="repoMsg"></p>
   <div class="camslot" id="camSlotRepo"></div>
   <p class="hint" id="repoLive"></p>
-</div></div>
+  <p class="hint" id="repoRecovery" aria-live="polite">If positioning cannot recover, you can end the task and submit the data collected so far.</p>
+  <div class="row" style="justify-content:center;margin-top:12px"><button class="btn ghost small" type="button" id="repoStop">Stop task and see recovery options</button></div>
+ </div></div>
 <div id="instruct" role="dialog" aria-labelledby="iTitle"><div class="ibox">
   <p class="eyebrow" id="iEyebrow">Next</p>
   <h2 id="iTitle"></h2>
@@ -674,7 +676,7 @@ const CONSENT_VERSION = 'webgazer-consent-2026-10-20-v1';
 const CAM_W = 400;
 const QUALITY=GazeQuality.CFG;
 // This is the existing saved build label. It is metadata, not the current ZIP name.
-const STUDY_BUILD='webgazer-validation-2.6-brand-design-consent';
+const STUDY_BUILD='webgazer-validation-2.7-calibration-failure-retention';
 let activeTaskId='', activeTargetX=null, activeTargetY=null, activeAttempt=0, validationAttempts=[], runInterrupted=false;             // camera preview width (px)
 
 /* ============================================================
@@ -735,6 +737,7 @@ let emaAlpha=SMOOTHING?SMOOTH_ALPHA:1, kalmanOn=USE_KALMAN, soundOn=true, dispX=
 let sessionLog=[], recording=false, phase='setup', t0=0, sessionUnixStart=Date.now(), pid='anon', participantName='', experience='', consentRecord=null, studyVisit='pilot', unsaved=false, recoveryMode=false, pendingHadFinish=false;
 let pxPerCm=null, distCm=null, distSource='camera estimate', anchorEstCm=null;
 let paused=false, pauseCount=0, calibrated=false, calRuns=0, checkRuns=[], passed=false, valKind='main', calViewport=null, viewportChanged=false;
+let calibrationAttemptCount=0, calibrationCompleted=false, calibrationHistory=[], calibrationPointsCollected=0, calibrationFailureReason=null, validationCompleted=false, pauseStartedAt=null;
 let lastSummary=null;
 let searchTrials=[], curTrial=null, searchActive=false, lastSearch=null, searchHasRun=false;
 let trackerOn=false, trackerHooked=false, modelReady=false, modelError=null;
@@ -762,7 +765,7 @@ function onGaze(d,webgazerElapsedMs){
   if(!inside){
     const reason=!finite?'gaze_null':'gaze_out_of_bounds';
     if(collecting)curNulls.push({t,reason});
-    if(recording)logEvent(reason,finite?d.x:null,finite?d.y:null,{wgElapsedMs:webgazerElapsedMs});
+    if(recording)logEvent(reason,finite?d.x:null,finite?d.y:null,{rx:finite?d.x:null,ry:finite?d.y:null,smx:null,smy:null,wgElapsedMs:webgazerElapsedMs});
     if(searchActive&&curTrial)curTrial.invalidCallbacks=(curTrial.invalidCallbacks||0)+1;
     return;
   }
@@ -1211,9 +1214,9 @@ function startAlert(){ if(!soundOn||alertTimer) return;
   }catch(e){} }
 function stopAlert(){ clearInterval(alertTimer); alertTimer=null; }
 let pauseWhy=null, driftSince=null, okSince=null;
-function beginPause(why){ paused=true; pauseCount++; pauseWhy=why; okSince=null;
+function beginPause(why){ paused=true; pauseCount++; pauseWhy=why; okSince=null; pauseStartedAt=now();
   placeCam('camSlotRepo'); $('#reposition').classList.add('on'); startAlert(); logEvent('pause',0,0); updatePauseText(); }
-function endPause(){ if(!paused) return; paused=false; pauseWhy=null; driftSince=null;
+function endPause(){ if(!paused) return; paused=false; pauseWhy=null; driftSince=null; pauseStartedAt=null;
   $('#reposition').classList.remove('on'); placeCam(null); stopAlert(); logEvent('resume',0,0); }
 function updatePauseText(){
   const d=liveDistCm!=null?Math.round(liveDistCm):null;
@@ -1224,6 +1227,7 @@ function updatePauseText(){
     $('#repoMsg').textContent=(closer?'Sit back':'Come closer')+` to about ${anchorEstCm} cm, where you calibrated. The task carries on by itself.`; }
   else { $('#repoTitle').textContent='Hold still\u2026'; $('#repoMsg').textContent='That\u2019s it. Carrying on in a moment.'; }
   $('#repoLive').textContent=!faceOK()?'Looking for your face\u2026':(d!=null&&anchorEstCm!=null?`Now about ${d} cm \u00b7 target ${anchorEstCm} cm`:'');
+  $('#repoRecovery').textContent=pauseStartedAt!=null&&now()-pauseStartedAt>45000?'Positioning has been interrupted for more than 45 seconds. If you cannot continue, stop this task and submit the records collected so far.':'If positioning cannot recover, you can stop this task and still submit the data collected so far.';
 }
 setInterval(()=>{
   const active=trackerOn && recording && (curStage==='cal'||curStage==='val'||curStage==='search') && !aborted && !instructOpen();
@@ -1236,7 +1240,8 @@ setInterval(()=>{
   const good=faceOK() && Math.abs(drift)<=DIST_TOL-2;
   if(good){ if(okSince==null) okSince=t; if(t-okSince>700) endPause(); } else okSince=null;
 },250);
-async function gate(){ if(!paused) return false; while(paused&&!aborted) await sleep(120); return true; }   // true = we waited
+async function gate(){ if(!paused) return false; while(paused&&!aborted) await sleep(120); return true; }   // The visible Stop task button lets participants leave a prolonged pause.
+$('#repoStop').onclick=()=>abortTask('The camera could not recover a stable face position');
 
 /* ============================================================
    3 · CALIBRATION (the dot moves by itself; nothing to click)
@@ -1261,6 +1266,7 @@ function showCalIntro(){
 // Show calibration targets and send their known positions to WebGazer for learning.
 async function runCalibration(){
   aborted=false; const my=++runId; const stop=()=>aborted||my!==runId;
+  calibrationAttemptCount++; calibrationCompleted=false; calibrationPointsCollected=0; calibrationFailureReason=null; validationCompleted=false;
   phase='calibrate'; show('cal'); placeCam(null); setLiveDot(false);
   passed=false;lastSummary=null;lastSearch=null;
   if(!searchHasRun)searchTrials=[];
@@ -1279,7 +1285,7 @@ async function runCalibration(){
     st.appendChild(dot); st.appendChild(svg);
     const ring=()=>{ c.style.transition='none'; c.style.strokeDashoffset='151'; void c.getBoundingClientRect();
       c.style.transition=`stroke-dashoffset ${CAL_MS-CAL_SETTLE}ms linear`; c.style.strokeDashoffset='0'; };
-    activeTaskId=`cal_${i+1}`;activeTargetX=x;activeTargetY=y;activeAttempt=1;
+    activeTaskId=`cal_${i+1}`;activeTargetX=x;activeTargetY=y;activeAttempt=calibrationAttemptCount;
     hud('cal',`Point ${i+1} of ${CAL.length}`,i/CAL.length); logEvent('cal_target',x,y);
     // Keep the target on screen for 2000 ms. Interruptions invalidate the point.
     const pointStart=now(), pointEnd=pointStart+CAL_MS;
@@ -1293,21 +1299,41 @@ async function runCalibration(){
       await sleep(Math.max(1,Math.min(15,pointEnd-now())));
     }
     dot.remove(); svg.remove();
+    validationAttempts.push({kind:'calibration',point:i+1,attempt:calibrationAttemptCount,targetX:x,targetY:y,
+      interrupted:!!interrupted,elapsedMs:now()-pointStart,callbacksValid:k,callbacksInvalid:null,
+      status:interrupted?'interrupted':(k<12?'insufficient_training_samples':'collected')});
     if(interrupted || k<12){
-      logEvent('calibration_point_failed',x,y,{sampleN:k});
-      calibrated=false;
-      phase='instructions';
-      instruct('Calibration interrupted','Please recalibrate',
-        '<p>The camera could not collect enough eye positions for one calibration point. Check your face position and lighting. The next attempt will start calibration from the beginning.</p>',
-        [{label:'Restart 12 point calibration',primary:true,fs:true,fn:runCalibration},{label:'Back to camera check',fn:runDistance}]);
+      calibrationFailureReason=interrupted?'camera_interruption':'insufficient_training_samples';
+      calibrationHistory.push({attempt:calibrationAttemptCount,completed:false,points_collected:calibrationPointsCollected,
+        stopped_at_point:i+1,training_samples_at_failed_point:k,reason:calibrationFailureReason});
+      logEvent('calibration_point_failed',x,y);
+      calibrated=false; phase='instructions';
+      queueCheckpoint('task_aborted').catch(()=>{});
+      instruct('Calibration interrupted','Your calibration data were retained',
+        '<p>Not enough training data were collected at this point. We recorded the unsuccessful attempt. You may retry, continue to the independent accuracy assessment using the partial calibration, or finish and submit incomplete data.</p>',
+        [{label:'Restart calibration',primary:true,fs:true,fn:runCalibration},
+         {label:'Continue with partial calibration',fs:true,fn:continuePartialCalibration},
+         {label:'Finish early and go to submission',fn:finish},
+         {label:'Back to camera check',fn:runDistance}]);
       return;
     }
+    calibrationPointsCollected++;
     logEvent('cal_blank',null,null); await sleep(CAL_ITI);
   }
   if(stop()) return;
   activeTaskId='';activeTargetX=null;activeTargetY=null;activeAttempt=0;
-  hud('cal','Done',1); calibrated=true; calRuns++; passed=false; logEvent('cal_done',0,0);
+  hud('cal','Done',1); calibrated=true; calibrationCompleted=true; calRuns++; passed=false; calibrationHistory.push({attempt:calibrationAttemptCount,completed:true,points_collected:CAL.length,stopped_at_point:null,reason:null});logEvent('cal_done',0,0);
   showValIntro('Calibration complete. Now we will measure accuracy at separate locations.');
+}
+
+// Partial training is still an observed calibration failure. Never label it as successful.
+function continuePartialCalibration(){
+  aborted=false; paused=false; stopAlert(); $('#reposition').classList.remove('on');
+  activeTaskId='';activeTargetX=null;activeTargetY=null;activeAttempt=0;
+  calibrated=true; calibrationCompleted=false; passed=false; validationCompleted=false;
+  logEvent('calibration_partial_continued',null,null);
+  queueCheckpoint('task_aborted').catch(()=>{});
+  showValIntro('Calibration did not finish. Your partial training and failure status will be saved. The independent accuracy assessment can still measure how inaccurate the predictions are.');
 }
 
 /* ============================================================
@@ -1341,7 +1367,7 @@ async function dwell(){
 async function runValidation(kind){
   kind='main'; valKind='main';
   if(!calibrated){showCalIntro();return;}
-  aborted=false;runInterrupted=false;const my=++runId;const stop=()=>aborted||my!==runId;
+  aborted=false;runInterrupted=false;validationCompleted=false;lastSummary=null;passed=false;const my=++runId;const stop=()=>aborted||my!==runId;
   phase='validate'; show('val');placeCam(null);setLiveDot(false);
   webgazer.removeMouseEventListeners();
   if(calViewport&&(innerWidth!==calViewport.w||innerHeight!==calViewport.h))viewportChanged=true;
@@ -1369,8 +1395,9 @@ async function runValidation(kind){
     if(stop())return;
     if(r.interrupted)interruptedN++;
     if(!r.interrupted&&tries>1)logEvent('point_recovered_after_pause',x,y);
-    const kept=r.interrupted?[]:r.samples.filter(s=>s.t-r.tOn>=PRUNE&&s.t-r.tOn<DWELL);
-    const invalid=r.interrupted?[]:r.nulls.filter(n=>n.t-r.tOn>=PRUNE&&n.t-r.tOn<DWELL);
+    // Retain gaze observations from interrupted points; flag them unusable for the primary quality summary.
+    const kept=r.samples.filter(s=>s.t-r.tOn>=PRUNE&&s.t-r.tOn<DWELL);
+    const invalid=r.nulls.filter(n=>n.t-r.tOn>=PRUNE&&n.t-r.tOn<DWELL);
     for(let k=1;k<kept.length;k++)intervals.push(kept[k].t-kept[k-1].t);
     nGot+=kept.length;nNull+=invalid.length;
     const measured=GazeQuality.measure(kept.map(s=>({t:s.t-r.tOn,x:s.gx,y:s.gy})),{x,y},
@@ -1416,14 +1443,29 @@ function abortTask(reason){
   if(!TASKS.has(curStage)||aborted) return;
   const where=curStage; aborted=true; runId++; collecting=false; searchActive=false;
   logEvent('participant_task_abort',null,null);
+  if(where==='cal' && !calibrationHistory.some(r=>r.attempt===calibrationAttemptCount)){
+    calibrationFailureReason='task_stopped'; calibrationCompleted=false;
+    calibrationHistory.push({attempt:calibrationAttemptCount,completed:false,points_collected:calibrationPointsCollected,stopped_at_point:activeTaskId||null,reason:calibrationFailureReason});
+  }
+  if(where==='val'){validationCompleted=false;lastSummary=null;passed=false;}
   validationAttempts.push({kind:where+'_abort',point:null,attempt:activeAttempt,interrupted:true,elapsedMs:null,callbacksValid:null,callbacksInvalid:null});
   queueCheckpoint('task_aborted').catch(()=>{});
   endPause(); stopAlert();
   clearStage(stages.cal); clearStage(stages.val);
-  if(where==='search'){ $('#searchArea').innerHTML=''; show(lastSummary?'res':'dist'); toast((reason||'Search task stopped')+'. Nothing from it was scored.'); return; }
+  if(where==='search'){
+    $('#searchArea').innerHTML=''; phase='instructions';
+    instruct('Search stopped','Your recorded gaze data are retained',
+      `<p>${esc(reason||'The search task stopped')}. You may finish and submit the incomplete session. Recorded trial data and interruption reasons will be saved.</p>`,
+      [{label:'Finish early and go to submission',primary:true,fn:finish},
+       {label:'Return to accuracy results',fn:()=>lastSummary?show('res'):finish()}]);
+    return;
+  }
   const btns=[];
   if(where==='val'&&calibrated) btns.push({label:'Restart the accuracy task',primary:true,fs:true,fn:()=>runValidation('main')});
   btns.push({label:where==='cal'||!calibrated?'Restart calibration':'Recalibrate',primary:!btns.length,fs:true,fn:runCalibration});
+  if(where==='cal')btns.push({label:'Continue with partial calibration',fs:true,fn:continuePartialCalibration});
+  if(where==='val')btns.push({label:'Continue to visual search with incomplete validation',fn:showSearchIntro});
+  btns.push({label:'Finish early and go to submission',fn:finish});
   btns.push({label:'Back to camera check',fn:runDistance});
   phase='instructions';
   instruct('Stopped',where==='cal'?'Calibration stopped':'Check stopped',`<p>${esc(reason||'You stopped the task')}. Choose how to carry on.</p>`,btns);
@@ -1462,7 +1504,9 @@ function computeResults(results,st){
   if(viewportChanged){screens.pass=false;screens.reasons.push('viewport_changed');}
   const track=camStream&&camStream.getVideoTracks()[0], set=track&&track.getSettings?track.getSettings():{};
   const streams={raw:streamSummary(st.resultsRaw||[]),smoothed:streamSummary(st.resultsSm||[])};
+  validationCompleted=true;
   lastSummary={pid,accPx,precPx,accDeg,precDeg,ax,streams,resultsRaw:st.resultsRaw||[],resultsSm:st.resultsSm||[],hz,im,isd,validity,results,coverage,screenQuality:screens,interruptedN:st.interruptedN,pxPerCm,distCm,distSource,anchorEstCm,
+    calibration_completed:calibrationCompleted,calibration_attempts:calibrationAttemptCount,calibration_points_collected:calibrationPointsCollected,calibration_failure_reason:calibrationFailureReason,calibration_history:calibrationHistory.slice(),validation_completed:true,
     screenW:innerWidth,screenH:innerHeight,pauses:st.pauses,calRuns,viewportChanged,fullscreen:!!document.fullscreenElement,
     camLabel:track?track.label:'',camRes:set.width?`${set.width}x${set.height}`:'',camFps:set.frameRate?Math.round(set.frameRate):'',nGot:st.nGot};
   const f=(v,d=0)=>v==null?'\u2014':v.toFixed(d);
@@ -1473,7 +1517,7 @@ function computeResults(results,st){
 
   let V=[['good','\u2713','Tracking looks good','You can move on.'],
            ['fair','!','Tracking is usable','Recalibrating may improve it: more light on your face, camera at eye level, head still.'],
-           ['poor','!','Quality requirements not met','The session is saved as a failed screen, with point-specific reasons. Recalibrate before using the search assessment.']][worst];
+           ['poor','!','Quality requirements not met','Inaccurate and missing gaze data are retained. You may continue to the search task or choose to recalibrate.']][worst];
 
   $('#verdict').className='verdict '+V[0]; $('#verdictIc').textContent=V[1]; $('#verdictT').textContent=V[2]; $('#verdictP').textContent=V[3];
   // The 12 point validation screen, not an extra five-point check, determines screening quality.
@@ -1490,7 +1534,8 @@ function computeResults(results,st){
       <td class="mono">${r.n}${!r.usable?'<div class="xy" style="color:#b44">EXCLUDE: '+esc((r.reasons||[]).join('; '))+'</div>':''}</td></tr>`;}).join('');
   const warns=[];
   if(ok.length<results.length) warns.push(`${results.length-ok.length} of ${results.length} points failed the predeclared sample coverage or interruption rules and were excluded from the summary.`);
-  if(!screens.pass)warns.push('The validation screen failed quality checks: '+screens.reasons.slice(0,12).join('; '));
+  if(!screens.pass)warns.push('The validation screen failed quality checks (data retained; continuation allowed): '+screens.reasons.slice(0,12).join('; '));
+  if(!calibrationCompleted)warns.push('Calibration did not complete; gaze predictions and assessment records are retained as a failed calibration attempt.');
   if(viewportChanged) warns.push('The window changed size after calibration, which shifts the gaze estimates. Recalibrate for a fair result.');
   if(accDeg!=null&&distSource!=='tape measure') warns.push('No tape measurement: the degree values use the camera\u2019s distance estimate, which can be off by roughly 15\u201325%. Pixel values avoid distance-conversion error but are still subject to webcam tracking error.');
   if(vision.clearNow==='no') warns.push('You said you couldn\u2019t see the screen clearly, which can make the results worse.');
@@ -1536,12 +1581,12 @@ async function finish(){
   $('#submitStudyData').disabled=true;
   $('#doneSaved').textContent='Saving the final local checkpoint…';
   try{
-    const completedTask=!!lastSummary && !!lastSearch && searchTrials.length===SEARCH_TRIALS;
+    const completedTask=calibrationCompleted && validationCompleted && !!lastSummary && !!lastSearch && searchTrials.length===SEARCH_TRIALS;
     if(StudyUpload.configured){
       await queueKinematics();
       await queueCheckpoint(completedTask?'finish':'incomplete_finish');
     }
-    $('#doneSaved').textContent=StudyUpload.configured?(completedTask?'Your complete session is ready to submit. Nothing has been sent to the research server yet.':'Your session ended before all 50 search trials were completed. It will be submitted as INCOMPLETE. Nothing has been sent yet.'):
+    $('#doneSaved').textContent=StudyUpload.configured?(completedTask?'Your complete session is ready to submit. Nothing has been sent to the research server yet.':'This session is marked INCOMPLETE because calibration, validation, or search was unfinished. Collected gaze and failure records are preserved. Nothing has been sent yet.'):
       'Local pilot mode: no research server is configured. Use Download a backup to save the data.';
     $('#submitStudyData').disabled=!StudyUpload.configured;
   }catch(e){
@@ -1621,25 +1666,25 @@ function saveQuality(){
 }
 function saveAttempts(){
  if(!validationAttempts.length)return false;
- const cols=['participant','kind','point','attempt','targetX','targetY','interrupted','elapsedMs','callbacksValid','callbacksInvalid'];
+  const cols=['participant','kind','point','attempt','targetX','targetY','interrupted','elapsedMs','callbacksValid','callbacksInvalid','status'];
  download(`gaze_attempts_${pid}_${stamp()}.csv`,asCSV(cols,validationAttempts.map(r=>({participant:pid,...r}))));return true;
 }
 // This local export is a backup if the participant cannot submit online.
 function saveSession(){
- if(!lastSummary)return false;
+ if(!sessionLog.length && !calibrationHistory.length && !validationAttempts.length)return false;
  const s=lastSummary;
  const pack={study_build:STUDY_BUILD,webgazer_version:'2.0.1',participant:pid,
-  generated_at:new Date().toISOString(),visit_type:studyVisit,eye_tracker_experience:experience,consent_name:participantName,session_outcome:s.screenQuality,
+  generated_at:new Date().toISOString(),visit_type:studyVisit,eye_tracker_experience:experience,consent_name:participantName,session_outcome:s?.screenQuality||null,calibration_completed:calibrationCompleted,calibration_attempts:calibrationAttemptCount,calibration_points_collected:calibrationPointsCollected,calibration_failure_reason:calibrationFailureReason,calibration_history:calibrationHistory,validation_completed:validationCompleted,
   independent_validation_quality_passed:passed,consent:consentRecord,
-  validation_usable_points:s.results.filter(r=>r.usable).length,
-  measured_quality:{accuracy_mean_px:s.accPx,accuracy_deg:s.accDeg,precision_rms_px:s.precPx,
-   precision_deg:s.precDeg,mean_time_coverage_pct:s.coverage,callback_valid_pct:s.validity,
-   sampling_hz:s.hz,inter_sample_mean_ms:s.im,inter_sample_sd_ms:s.isd},
-  display:{w:s.screenW,h:s.screenH,px_per_cm:pxPerCm,distance_cm:distCm,distance_source:distSource,
+  validation_usable_points:s?.results?.filter(r=>r.usable).length??0,
+  measured_quality:{accuracy_mean_px:s?.accPx??null,accuracy_deg:s?.accDeg??null,precision_rms_px:s?.precPx??null,
+   precision_deg:s?.precDeg??null,mean_time_coverage_pct:s?.coverage??null,callback_valid_pct:s?.validity??null,
+   sampling_hz:s?.hz??null,inter_sample_mean_ms:s?.im??null,inter_sample_sd_ms:s?.isd??null},
+  display:{w:s?.screenW??innerWidth,h:s?.screenH??innerHeight,px_per_cm:pxPerCm,distance_cm:distCm,distance_source:distSource,
     device_pixel_ratio:devicePixelRatio,viewport_changed:viewportChanged},
   setup:{demo,device,vision,system:sysInfo},
   calibration:{regression:REGRESSION,kalman:kalmanOn,primary_stream:emaAlpha<1?'smoothed':'raw',
-   cal_points:CAL.length,checks:checkRuns,calibration_runs:calRuns},
+   cal_points:CAL.length,checks:checkRuns,calibration_runs:calRuns,attempts:calibrationAttemptCount,completed:calibrationCompleted,history:calibrationHistory},
   settings:QUALITY,face_model_source:window.__modelSource,search_trials_completed:searchTrials.length,
   notes:'Screen pass is a screening rule, NOT proof of psychometric validity. In browser WebGazer model inference timestamp is not independently clocked.'};
  download(`gaze_session_${pid}_${stamp()}.json`,JSON.stringify(pack,null,2),'application/json');return true;
@@ -1711,7 +1756,7 @@ async function saveAll(){
 }
 function renderSend(){
  const st=StudyUpload.status;
- const info=!StudyUpload.configured?'<b>Local pilot mode.</b> No Railway API has been configured; use Download a backup.':
+ const info=!StudyUpload.configured?'<b>Local pilot mode.</b> No research server has been configured; use Download a backup.':
    (st.receipt?'<b>Submission confirmed.</b> Research server received the saved study records.':
      '<b>Not yet submitted.</b> '+st.pending+' locally saved checkpoint batch(es). Data will be uploaded only after you press SUBMIT STUDY DATA.'+
      (st.error?' Last server error: '+esc(st.error):''));
@@ -1752,10 +1797,13 @@ async function persistCheckpoint(kind){
     checks:checkRuns.slice(checkUploadCursor,untilChecks),
     search_trials:searchTrials.slice(searchUploadCursor,untilTrials),
     validation_summary:['validation_complete','finish','incomplete_finish'].includes(kind)?lastSummary:null,
+    calibration_outcome:{completed:calibrationCompleted,attempts:calibrationAttemptCount,points_collected:calibrationPointsCollected,failure_reason:calibrationFailureReason,history:calibrationHistory.slice()},
+    validation_completed:validationCompleted,validation_quality_passed:validationCompleted?passed:null,
     search_summary:['search_complete','finish','incomplete_finish'].includes(kind)?lastSearch:null,
     participant_details:['finish','incomplete_finish'].includes(kind)?{consent_name:participantName,consent:consentRecord,demographics:demo,device,vision,system:sysInfo,
       screen_px_per_cm:pxPerCm,distance_cm:distCm,distance_source:distSource,
-      age:demo.age||null,eye_tracker_experience:experience}:null,
+      age:demo.age||null,eye_tracker_experience:experience,calibration_completed:calibrationCompleted,calibration_attempts:calibrationAttemptCount,
+      calibration_history:calibrationHistory.slice(),validation_completed:validationCompleted,validation_quality_passed:validationCompleted?passed:null}:null,
     viewport:{w:innerWidth,h:innerHeight},recording_active:recording};
  // Serial upload queue persistence is coordinated in upload.js. Advance cursors only after IndexedDB stores the batch.
  await StudyUpload.enqueue(kind,batch,STUDY_BUILD);
@@ -1774,13 +1822,11 @@ addEventListener('beforeunload',e=>{ if(unsaved){ e.preventDefault(); e.returnVa
    WIRING
    ============================================================ */
 $('#gazeToggle').onclick=()=>setLiveDot(!liveDot);
-const needPass=()=>{if(passed&&lastSummary&&lastSummary.screenQuality.pass&&!viewportChanged)return false;
- toast('The 12 point accuracy assessment did not meet the pilot quality criteria. You can recalibrate and retry.',6000);return true;};
 $('#toExp').onclick=finish;
 $('#toExp2').onclick=finish;
 $('#reCalFromRes').onclick=showCalIntro;
-$('#expBack').onclick=()=>show('res');
-$('#backRes').onclick=()=>show('res');
+$('#expBack').onclick=()=>{if(lastSummary)show('res');else show('sres');};
+$('#backRes').onclick=()=>{ if(lastSummary)show('res'); else toast('No completed validation results in this session.'); };
 $('#dlRaw').onclick=()=>{ saveRaw()||toast('There\u2019s no data to download yet.'); };
 $('#dlValidation').onclick=()=>{ saveValidation()||toast('There\u2019s no data to download yet.'); };
 ['#dlAll','#dlAll2','#saveAll','#doneDl'].forEach(s=>$(s).onclick=saveAll);
@@ -1888,7 +1934,7 @@ function trialUntilDone(tr){return new Promise(resolve=>{
 // Run the search task only once per session to avoid mixing in practice effects.
 async function runSearch(){
   if(searchHasRun){toast('This study session already contains a visual search attempt. Complete or finish the current session.');if(lastSearch)show('sres');return;}
-  if(needPass())return;
+  // Gaze quality is an analysis flag, not a condition for completing the behavioral task.
   searchHasRun=true;
   aborted=false;const my=++runId;phase='search';show('search');placeCam(null);
   searchTrials=[];activeTargetX=null;activeTargetY=null;
@@ -2024,8 +2070,8 @@ function saveSearchTrials(){
 function showSearchIntro(){ phase='instructions';
   instruct('Study task','Find the letters',
     '<p>You\u2019ll see a screen full of the letter \u201cE\u201d. Most face backwards, but <b>two face the normal way</b>. Find both and <b>click each one</b>. The next round starts as soon as you\u2019ve clicked both. There are '+SEARCH_TRIALS+' rounds and each can last up to 25 seconds. Use a large desktop display.</p><p class="hint">Can\u2019t find them? Press Space to skip a round. Esc stops the task.</p>',
-    [{label:'Start the search task',primary:true,fs:true,fn:runSearch},{label:'Not now',fn:()=>show('res')}]); }
-$('#toSearch').onclick=()=>{ if(needPass()) return; showSearchIntro(); };
+    [{label:'Start the search task',primary:true,fs:true,fn:runSearch},{label:'Not now',fn:()=>lastSummary?show('res'):finish()}]); }
+$('#toSearch').onclick=showSearchIntro;
 // Deliberately no repeat button: repeated search runs would bias within-session outcomes.
 $('#dlSearch').onclick=()=>{ saveSearch()||toast('There\u2019s no search data yet.'); };
 })();
