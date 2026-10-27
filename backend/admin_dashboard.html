@@ -3,16 +3,25 @@
 <title>WebGazer researcher portal</title>
 <style>
 :root{font-family:system-ui,-apple-system,sans-serif;color:#162637;background:#f6f7fa}*{box-sizing:border-box}body{margin:0}header{background:#102e4f;color:white;padding:21px max(20px,calc((100% - 1200px)/2));display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}h1{font-size:22px;margin:0}header button{background:transparent;color:white;border:1px solid #abc2d8;padding:9px 15px;border-radius:8px;cursor:pointer}main{max-width:1200px;margin:28px auto;padding:0 20px}.meta{color:#536373;font-size:14px}section{background:white;border:1px solid #dbe0e9;border-radius:12px;padding:22px;margin:16px 0}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}.stat{background:#eff4f9;border-radius:10px;padding:18px}.stat b{display:block;font-size:29px;margin-top:5px}.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:780px}th,td{padding:13px 10px;border-bottom:1px solid #e8ebf0;text-align:left;font-size:14px}th{background:#f7f8fb}.pill{border-radius:100px;padding:4px 9px;background:#e7eff6;white-space:nowrap}.pill.submitted{background:#dceee5;color:#175d36}.pill.incomplete{background:#fff0d1;color:#7c4a03}#error,#loginError{color:#a52827}button{font:inherit;cursor:pointer}button:disabled{opacity:.6}.primary{background:#173c63;color:white;border:0;border-radius:8px;padding:12px 18px;font-weight:650}.export{background:#176443;color:white;border:0;border-radius:10px;padding:16px 24px;font-weight:750;font-size:17px}.export:hover{background:#124d34}.link{border:0;background:transparent;color:#085b9b;font-weight:650;text-decoration:underline;padding:3px}.login{max-width:450px;margin:10vh auto;padding:32px;background:white;border:1px solid #dbe0e9;border-radius:15px;box-shadow:0 8px 35px #12233c11}.login label{font-weight:650;display:block;margin:24px 0 8px}.login input{width:100%;font:inherit;padding:14px;border-radius:7px;border:1px solid #adb7c4}.login button{width:100%;margin-top:18px}#loginView[hidden],#dashboardView[hidden]{display:none!important}
+/* Show/hide password control. This does not change login authentication. */
+.password-wrap{position:relative}
+.password-wrap input{padding-right:62px}
+.login .password-toggle{position:absolute;right:5px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;width:44px;height:44px;margin:0;padding:0;border:0;border-radius:6px;background:transparent;color:#536373;cursor:pointer}
+.login .password-toggle:hover{background:#edf2f7;color:#173c63}
+.login .password-toggle:focus-visible{outline:2px solid #085b9b;outline-offset:2px}
+.eye-icon{width:21px;height:21px;display:block}
+.eye-icon[hidden]{display:none}
 </style></head>
 <body>
 <!-- The login screen does not contain any private study records. -->
-<div id="loginView"><div class="login"><h1>Researcher sign in</h1><p class="meta">Private study results and raw gaze data. Enter your password each time you open or refresh this page.</p><form id="loginForm"><label for="password">Researcher password</label><input id="password" type="password" required autocomplete="off" spellcheck="false"><button class="primary" type="submit" id="loginBtn">Sign in</button></form><p id="loginError" role="alert"></p></div></div>
+<div id="loginView"><div class="login"><h1>Researcher sign in</h1><p class="meta">Private study results and raw gaze data. Enter your password each time you open or refresh this page.</p><form id="loginForm"><label for="password">Researcher password</label><div class="password-wrap"><input id="password" type="password" required autocomplete="off" spellcheck="false"><button type="button" class="password-toggle" id="togglePassword" aria-label="Show password" aria-controls="password" aria-pressed="false" title="Show password"><svg class="eye-icon" id="eyeOpen" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-icon" id="eyeClosed" hidden xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.585 10.587a2 2 0 0 0 2.828 2.828"/><path d="M9.88 5.09A10.74 10.74 0 0 1 12 4.87c4.477 0 8.268 2.943 9.542 7.001a1 1 0 0 1 0 .258 10.6 10.6 0 0 1-2.225 3.674"/><path d="M6.61 6.61A10.75 10.75 0 0 0 2.458 11.87a1 1 0 0 0 0 .26c1.274 4.058 5.065 7.001 9.542 7.001a10.72 10.72 0 0 0 5.388-1.46"/><path d="m2 2 20 20"/></svg></button></div><button class="primary" type="submit" id="loginBtn">Sign in</button></form><p id="loginError" role="alert"></p></div></div>
 <!-- Session counts and download controls appear only after a successful login. -->
 <div id="dashboardView" hidden><header><h1>WebGazer · Research dashboard</h1><button id="logout">Sign out</button></header>
 <main><p class="meta">Protected participant data. Keep exported files on approved research storage. Dashboard updates every 20 seconds after submissions arrive.</p>
 <div class="stats"><div class="stat">Completed submissions<b id="submitted">—</b><small>Not necessarily unique people</small></div><div class="stat">All started uploads<b id="total">—</b></div><div class="stat">Incomplete submissions<b id="incomplete">—</b></div><div class="stat">Currently uploading<b id="uploading">—</b></div></div>
 <section><h2 style="margin-top:0">Export all research data</h2><p class="meta">A single ZIP containing all saved sessions, raw JSON checkpoints, CSV tables of gaze and experimental measures, session summaries, and PNG plots. The ZIP may include optional names and demographic data.</p><button class="export" id="exportAll">⬇ Download all CSV, raw data and plots (ZIP)</button><p id="exportStatus" role="status" class="meta"></p></section>
-<section><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center"><div><h2 style="margin:0 0 5px;font-size:20px">Participant sessions</h2><div class="meta">Open study URL: <a href="/" target="_blank" rel="noreferrer">participant experiment</a>. No invitation required.</div></div><button class="primary" id="refresh">Refresh now</button></div><p class="meta" id="updated">Loading…</p><p id="error" role="status"></p><div class="scroll"><table><thead><tr><th>Session</th><th>Status</th><th>Batches</th><th>Accuracy</th><th>Precision</th><th>Validation passed</th><th>Last activity (UTC)</th><th>Export</th></tr></thead><tbody id="rows"></tbody></table></div></section>
+<section><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center"><div><h2 style="margin:0 0 5px;font-size:20px">Participant sessions</h2><div class="meta">Open study URL: <a href="/" target="_blank" rel="noreferrer">participant experiment</a>.
+No invitation required.</div></div><button class="primary" id="refresh">Refresh now</button></div><p class="meta" id="updated">Loading…</p><p id="error" role="status"></p><div class="scroll"><table><thead><tr><th>Session</th><th>Status</th><th>Batches</th><th>Accuracy</th><th>Precision</th><th>Validation passed</th><th>Last activity (UTC)</th><th>Export</th></tr></thead><tbody id="rows"></tbody></table></div></section>
 <p class="meta">Access expires after 30 minutes. Closing or refreshing this page discards your browser-held credentials. The completed count measures submitted sessions, not distinct humans, because no login or identity check is required of participants.</p>
 </main></div>
 <script>
@@ -24,10 +33,28 @@ const $=id=>document.getElementById(id);
 function authorization(){return {'Authorization':'Bearer '+researcherToken};}
 async function getPrivate(path){const r=await fetch(path,{headers:authorization(),cache:'no-store'});if(r.status===401){signOut();throw new Error('Session expired. Sign in again.');}return r;}
 function cell(row,value){const td=document.createElement('td');td.textContent=String(value??'—');row.append(td);return td;}
-function signOut(){researcherToken='';$('dashboardView').hidden=true;$('loginView').hidden=false;$('password').value='';if(refreshTimer)clearInterval(refreshTimer);refreshTimer=null;}
+function resetPasswordVisibility(){
+  $('password').type='password';
+  $('togglePassword').setAttribute('aria-pressed','false');
+  $('togglePassword').setAttribute('aria-label','Show password');
+  $('togglePassword').title='Show password';
+  $('eyeOpen').hidden=false;
+  $('eyeClosed').hidden=true;
+}
+$('togglePassword').addEventListener('click',()=>{
+  const visible=$('password').type==='password';
+  $('password').type=visible?'text':'password';
+  $('togglePassword').setAttribute('aria-pressed',String(visible));
+  $('togglePassword').setAttribute('aria-label',visible?'Hide password':'Show password');
+  $('togglePassword').title=visible?'Hide password':'Show password';
+  $('eyeOpen').hidden=visible;
+  $('eyeClosed').hidden=!visible;
+  $('password').focus({preventScroll:true});
+});
+function signOut(){researcherToken='';$('dashboardView').hidden=true;$('loginView').hidden=false;$('password').value='';resetPasswordVisibility();if(refreshTimer)clearInterval(refreshTimer);refreshTimer=null;}
 $('loginForm').addEventListener('submit',async event=>{
  event.preventDefault();const button=$('loginBtn');button.disabled=true;$('loginError').textContent='';
- try{const password=$('password').value;const result=await fetch('/admin/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password}),cache:'no-store'});$('password').value='';if(!result.ok)throw new Error(result.status===429?'Too many attempts. Try again later.':'Incorrect password');const data=await result.json();researcherToken=data.token;$('loginView').hidden=true;$('dashboardView').hidden=false;await refresh();refreshTimer=setInterval(()=>{if(document.visibilityState==='visible')refresh();},20000);}
+ try{const password=$('password').value;const result=await fetch('/admin/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password}),cache:'no-store'});$('password').value='';resetPasswordVisibility();if(!result.ok)throw new Error(result.status===429?'Too many attempts. Try again later.':'Incorrect password');const data=await result.json();researcherToken=data.token;$('loginView').hidden=true;$('dashboardView').hidden=false;await refresh();refreshTimer=setInterval(()=>{if(document.visibilityState==='visible')refresh();},20000);}
  catch(e){$('loginError').textContent=e.message;}finally{button.disabled=false;}
 });
 // Dashboard counts come from server records, not from a counter saved in the browser.
