@@ -517,7 +517,7 @@
         </div>
         <div class="sendbox"></div>
       </div>
-      <p class="cite">WebGazer protocol adapted from Brand, Diamond, Thomas &amp; Gilbert-Diamond (2021), <em>Behavior Research Methods, 53</em>(4), 1502–1514. The accuracy task repeats the 12-point 4×3 grid twice (24 presentations), 2000 ms displays, 250 ms blank intervals, and excludes the first 100 ms. Calibration uses a separate 12-point WebGazer training grid. The visual search task has 10 practice trials and 50 study trials. The E and # display is scaled from a 165×245 CSS-pixel bordered reference stimulus at 1366×768; its scale and viewport are recorded per trial. The webcam implementation is not an exact replication of the GP3 hardware protocol. Primary accuracy is mean gaze offset and primary precision is RMS spatial dispersion; sample-level error and successive-point RMS are also exported.
+      <p class="cite">WebGazer protocol adapted from Brand, Diamond, Thomas &amp; Gilbert-Diamond (2021), <em>Behavior Research Methods, 53</em>(4), 1502–1514. The accuracy task repeats the 12-point 4×3 grid twice (24 presentations), 2000 ms displays, 250 ms blank intervals, and excludes the first 100 ms. Calibration uses a separate 12-point WebGazer training grid. The visual search task has 10 practice trials and 50 study trials. The E and # display is proportionally reduced from Brand’s 165×245 CSS-pixel bordered reference stimulus when necessary so that all 18 bordered items remain separated; its scale and viewport are recorded per trial. The webcam implementation is not an exact replication of the GP3 hardware protocol. Primary accuracy is mean gaze offset and primary precision is RMS spatial dispersion; sample-level error and successive-point RMS are also exported.
         Viewing distance: the participant's tape measurement when given; otherwise estimated from the distance between the eyes in WebGazer's face mesh (average adult interpupillary distance, assumed camera field of view).</p>
     </div></div>
   </section>
@@ -657,7 +657,7 @@ loadScript('./webgazer-2.0.1.js',function(){console.warn('[GazeCheck] local webg
 <script src="./quality.js"></script>
 <script src="./gaze_kinematics.js"></script>
 <script src="./deploy-config.js"></script>
-<script src="./upload.js?v=20261027-memory-only"></script>
+<script src="./upload.js?v=20261027-fresh-consent-32"></script>
 <script>
 (function(){
 "use strict";
@@ -687,7 +687,7 @@ const CONSENT_VERSION = 'webgazer-consent-2026-10-20-v1';
 const CAM_W = 400;
 const QUALITY=GazeQuality.CFG;
 // This is the existing saved build label. It is metadata, not the current ZIP name.
-const STUDY_BUILD='webgazer-validation-3.1-responsive-brand-stimuli-timing-feedback';
+const STUDY_BUILD='webgazer-validation-3.2-nonoverlapping-search-fresh-consent';
 let activeTaskId='', activeTargetX=null, activeTargetY=null, activeAttempt=0, validationAttempts=[], runInterrupted=false;             // camera preview width (px)
 
 /* ============================================================
@@ -1950,20 +1950,39 @@ const PRACTICE_TRIALS=10;       // Brand's 10-trial abbreviated familiarization 
 const SEARCH_REF_W=1366, SEARCH_REF_H=768;  // Brand et al. reference display, CSS pixels
 const SEARCH_REF_LETTER_W=55, SEARCH_REF_LETTER_H=75;
 const SEARCH_REF_BORDER_W=165, SEARCH_REF_BORDER_H=245;
-const SEARCH_REF_MIN_CENTER_DIST=150;  // minimum separation between item centers
+const SEARCH_REF_MIN_CENTER_DIST=150;  // Brand reference spacing; nonoverlap uses complete bordered geometry
 const SEARCH_REF_BOTTOM_EXCLUSION=150; // no part of the bordered item in the last 150 px at reference size
 const SEARCH_TRIAL_TIMEOUT=25000;
-// Scaling by browser viewport preserves layout proportions, NOT guaranteed physical visual angle.
+// Brand's full 165x245 px bordered items cannot be laid out 18 at a time on a
+// 1366x768 reference viewport without overlaps. Scale the whole item (letter and
+// eight # marks) enough for a 6 x 3 nonoverlapping grid; record effective scale.
+// This is a documented browser adaptation, not a pixel-identical GP3 replication.
+const SEARCH_COLS=6, SEARCH_ROWS=3;
+const SEARCH_MARGIN_X=18, SEARCH_TOP=64;
+const SEARCH_MIN_GAP_X=18, SEARCH_MIN_GAP_Y=20;
 function searchGeometry(){
  const w=innerWidth,h=innerHeight;
- const scale=Math.min(w/SEARCH_REF_W,h/SEARCH_REF_H,1.35);
+ // Bottom 150 px exclusion scales with the stimulus, as does its AOI.
+ const availableW=w-2*SEARCH_MARGIN_X-(SEARCH_COLS-1)*SEARCH_MIN_GAP_X;
+ const availableH=h-SEARCH_TOP-(SEARCH_ROWS-1)*SEARCH_MIN_GAP_Y;
+ const scale=Math.max(0,Math.min(
+   w/SEARCH_REF_W, h/SEARCH_REF_H,
+   availableW/(SEARCH_COLS*SEARCH_REF_BORDER_W),
+   availableH/(SEARCH_ROWS*SEARCH_REF_BORDER_H+SEARCH_REF_BOTTOM_EXCLUSION)
+ ));
  const borderW=SEARCH_REF_BORDER_W*scale,borderH=SEARCH_REF_BORDER_H*scale;
- const top=56+borderH/2+6,bottom=h-SEARCH_REF_BOTTOM_EXCLUSION*scale-borderH/2;
- const left=borderW/2+10,right=w-borderW/2-10;
- return {scale,border_w_px:borderW,border_h_px:borderH,letter_w_px:SEARCH_REF_LETTER_W*scale,
-  letter_h_px:SEARCH_REF_LETTER_H*scale,viewport_w_px:w,viewport_h_px:h,
-  bottom_exclusion_px:SEARCH_REF_BOTTOM_EXCLUSION*scale,center_min_sep_px:SEARCH_REF_MIN_CENTER_DIST*scale,
-  left,right,top,bottom,reference_viewport_px:'1366x768',mode:'viewport_proportional_css_pixels'};
+ const left=SEARCH_MARGIN_X+borderW/2,right=w-SEARCH_MARGIN_X-borderW/2;
+ const top=SEARCH_TOP+borderH/2,bottom=h-SEARCH_REF_BOTTOM_EXCLUSION*scale-borderH/2;
+ const colPitch=(right-left)/(SEARCH_COLS-1),rowPitch=(bottom-top)/(SEARCH_ROWS-1);
+ const fits=w>=980&&h>=580&&scale>=0.57&&colPitch>=borderW+SEARCH_MIN_GAP_X-0.01&&rowPitch>=borderH+SEARCH_MIN_GAP_Y-0.01;
+ return {scale,border_w_px:borderW,border_h_px:borderH,
+   letter_w_px:SEARCH_REF_LETTER_W*scale,letter_h_px:SEARCH_REF_LETTER_H*scale,
+   viewport_w_px:w,viewport_h_px:h,bottom_exclusion_px:SEARCH_REF_BOTTOM_EXCLUSION*scale,
+   center_min_sep_px:SEARCH_REF_MIN_CENTER_DIST*scale,
+   cols:SEARCH_COLS,rows:SEARCH_ROWS,min_gap_x_px:SEARCH_MIN_GAP_X,
+   min_gap_y_px:SEARCH_MIN_GAP_Y,nonoverlap_enforced:true,
+   left,right,top,bottom,colPitch,rowPitch,fits,
+   reference_viewport_px:'1366x768',mode:'viewport_fit_no_overlapping_borders'};
 }
 function remainingMinutes(trialsDone,trialsTotal,history){
  const sec=history.filter(t=>t.startedAt!=null&&t.endedAt!=null&&t.endedAt>t.startedAt)
@@ -2022,36 +2041,27 @@ function searchTrialQuality(tr){
    coverageBinMs:250,minCoveragePct:55,maxGapMs:1000});
  return {usable:m.usable,reasons:m.reasons,coveragePct:m.coveragePct,rateHz:m.callbackRateHz};
 }
-// Create 18 randomized positions. Brand's 165x245 full borders cannot all be
-// non-overlapping on 1366x768 with the reserved bottom 150px; preserve a >=150px
-// CENTER separation and avoid overlap of the central letter while allowing # borders
-// of nearby items to share some screen area. Use a stratified fallback if random packing fails.
+// Keep every full bordered E/# rectangle separate. Randomize which positions
+// contain targets, and jitter positions only when enough free space is available.
 function makeTrial(){
  const g=searchGeometry();
- if(innerWidth<1000||innerHeight<600||g.bottom-g.top<2*g.center_min_sep_px-.1||g.right-g.left<5*g.center_min_sep_px-.1)return null;
+ if(!g.fits)return null;
  const all=[];
- for(let tries=0;all.length<18&&tries<12000;tries++){
-   const x=g.left+Math.random()*(g.right-g.left),y=g.top+Math.random()*(g.bottom-g.top);
-   if(all.every(p=>Math.hypot(p.x-x,p.y-y)>=g.center_min_sep_px))all.push({x:Math.round(x),y:Math.round(y)});
+ // The jitter budget is set by the *actual border gap*, not center distance.
+ const jitterX=Math.min(9,Math.max(0,(g.colPitch-g.border_w_px-SEARCH_MIN_GAP_X)/2));
+ const jitterY=Math.min(7,Math.max(0,(g.rowPitch-g.border_h_px-SEARCH_MIN_GAP_Y)/2));
+ for(let row=0;row<SEARCH_ROWS;row++)for(let col=0;col<SEARCH_COLS;col++){
+   const x=g.left+col*g.colPitch+(Math.random()*2-1)*jitterX;
+   const y=g.top+row*g.rowPitch+(Math.random()*2-1)*jitterY;
+   all.push({x,y});
  }
- if(all.length!==18){
-   // A jittered 6x3 fallback prevents random-packing deadlocks while preserving separation.
-   all.length=0;
-   for(let row=0;row<3;row++)for(let col=0;col<6;col++){
-     const dx=(Math.random()*2-1)*25*g.scale, dy=(Math.random()*2-1)*g.scale;
-     const x=Math.max(g.left,Math.min(g.right,g.left+(g.right-g.left)*col/5+dx));
-     const y=Math.max(g.top,Math.min(g.bottom,g.top+(g.bottom-g.top)*row/2+dy));
-     all.push({x:Math.round(x),y:Math.round(y)});
-   }
- }
- // Randomize which of the well-spaced positions carry targets.
  const idx=[...all.keys()];
  for(let k=idx.length-1;k>0;k--){const j=(Math.random()*(k+1))|0;[idx[k],idx[j]]=[idx[j],idx[k]];}
- const targetSet=new Set(idx.slice(0,2));const targets=[];
+ const targetSet=new Set(idx.slice(0,2)),targets=[];
  all.forEach((p,k)=>{p.id=k+1;p.target=targetSet.has(k);if(p.target)targets.push({id:p.id,x:p.x,y:p.y});});
- const {left,right,top,bottom,...recordedGeometry}=g;
- return {targets,stim:all,geometry:recordedGeometry,gaze:[],clicks:[],invalidCallbacks:0,startedAt:null,endedAt:null,
-   status:'pending',pauseTriggered:false};
+ const {left,right,top,bottom,colPitch,rowPitch,fits,...recordedGeometry}=g;
+ return {targets,stim:all,geometry:recordedGeometry,gaze:[],clicks:[],invalidCallbacks:0,
+   startedAt:null,endedAt:null,status:'pending',pauseTriggered:false};
 }
 function renderTrial(tr){
  const area=$('#searchArea');area.innerHTML='';
