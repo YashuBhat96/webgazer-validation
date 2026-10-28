@@ -223,7 +223,7 @@
       <div class="panel on" id="p-welcome">
         <p class="eyebrow">Webcam eye tracking</p>
         <h1>Gaze Check</h1>
-        <p>Welcome to the WebGazer eye tracking validation study. You will set up your webcam, complete a 12 point calibration, look at 24 accuracy targets (two sets of 12), practice finding letters, and complete a 50 trial letter search task.</p>
+        <p>Welcome to the WebGazer eye tracking validation study. You will set up your webcam, complete a 12 point calibration, look at 25 accuracy locations twice (50 presentations), practice finding letters, and complete a separate 50 trial letter search task.</p>
         <p class="okbox"><b>Estimated total time: about 15–25 minutes</b><span>Most of the time is spent setting up the camera and finding letters. It may take longer if you need a retry or more time to find targets. We will show an estimate before each step.</span></p>
         <div class="okbox" style="margin:16px 0" role="note" aria-label="Study privacy notice">
           <b>Privacy notice</b>
@@ -522,7 +522,7 @@
         </div>
         <div class="sendbox"></div>
       </div>
-      <p class="cite">WebGazer protocol adapted from Brand, Diamond, Thomas &amp; Gilbert-Diamond (2021), <em>Behavior Research Methods, 53</em>(4), 1502–1514. The accuracy task repeats the 12-point 4×3 grid twice (24 presentations), 2000 ms displays, 250 ms blank intervals, and excludes the first 100 ms. Calibration uses a separate 12-point WebGazer training grid. The visual search task has 10 practice trials and 50 study trials. The E and # display is proportionally reduced from Brand’s 165×245 CSS-pixel bordered reference stimulus when necessary so that all 18 bordered items remain separated; its scale and viewport are recorded per trial. The webcam implementation is not an exact replication of the GP3 hardware protocol. Primary accuracy is mean gaze offset and primary precision is RMS spatial dispersion; sample-level error and successive-point RMS are also exported.
+      <p class="cite">WebGazer protocol adapted from Brand, Diamond, Thomas &amp; Gilbert-Diamond (2021), <em>Behavior Research Methods, 53</em>(4), 1502–1514. The independent accuracy assessment uses 25 distinct screen positions (the original 12-point 4×3 Brand-style subset plus 13 additional positions), shown in two separately randomized passes (50 presentations total), with 2000 ms targets, 250 ms blank intervals, and exclusion of the first 100 ms. Calibration uses a separate 12-point WebGazer training grid. The visual search task has 10 practice trials and 50 study trials. The E and # display is proportionally reduced from Brand’s 165×245 CSS-pixel bordered reference stimulus when necessary so that all 18 bordered items remain separated; its scale and viewport are recorded per trial. The webcam implementation is not an exact replication of the GP3 hardware protocol. Primary accuracy is mean gaze offset and primary precision is RMS spatial dispersion; sample-level error and successive-point RMS are also exported.
         Viewing distance: the participant's tape measurement when given; otherwise estimated from the distance between the eyes in WebGazer's face mesh (average adult interpupillary distance, assumed camera field of view).</p>
     </div></div>
   </section>
@@ -693,12 +693,12 @@ const DIST_TOL = 8;            // cm of drift from the starting distance before 
 const GRADE = { accDeg:[3,6], precDeg:[3,6], accPx:[110,220], precPx:[110,220] };  // [good, fair] upper limits; above fair = poor
 const DIST_MIN = 50, DIST_MAX = 70;   // cm, webcam to eye: participants must sit in this range (checked on the tape measurement)
 const PASS_MIN_VALID = 75;            // observed callback validity, distinct from time coverage            // % of frames with a gaze estimate needed to pass the check
-// Validation uses 12 distinct screen positions shown twice (24 presentations), not an extra five-point check.
+// Independent validation uses 25 distinct positions (12 Brand-style + 13 extended) repeated in two randomized blocks (50 total).
 const CONSENT_VERSION = 'webgazer-consent-2026-10-20-v1';
 const CAM_W = 400;
 const QUALITY=GazeQuality.CFG;
 // This is the existing saved build label. It is metadata, not the current ZIP name.
-const STUDY_BUILD='webgazer-validation-3.3-progress-upload';
+const STUDY_BUILD='webgazer-validation-3.3-50-validation';
 let activeTaskId='', activeTargetX=null, activeTargetY=null, activeAttempt=0, validationAttempts=[], runInterrupted=false;             // camera preview width (px)
 
 /* ============================================================
@@ -1341,8 +1341,17 @@ function continuePartialCalibration(){
    4 · VALIDATION (Brand-inspired adaptation, not exact replication)
    ============================================================ */
 const V_COLS=[.10,.3667,.6333,.90], V_ROWS=[.12,.50,.88];
-// Two separately randomized passes over Brand's 12 targets. First pass remains a 12-point Brand-style comparison.
-// Analysis excludes the first 100 milliseconds to allow a target-directed eye movement.
+// Keep the original 12-position 4x3 Brand-style subset (location_id 1-12) for separate analysis.
+// Add 13 distinct coordinates for denser spatial coverage: 3 center-column positions and
+// two intervening rows of 5 positions. No position duplicates any of the first 12.
+const BRAND_VALIDATION_LOCATIONS=V_ROWS.flatMap(fy=>V_COLS.map(fx=>({fx,fy,group:'brand_reference'})));
+const EXTENDED_VALIDATION_LOCATIONS=[
+  ...V_ROWS.map(fy=>({fx:.50,fy,group:'extended'})),
+  ...[.31,.69].flatMap(fy=>[.10,.30,.50,.70,.90].map(fx=>({fx,fy,group:'extended'})))
+];
+const VALIDATION_LOCATIONS=[...BRAND_VALIDATION_LOCATIONS,...EXTENDED_VALIDATION_LOCATIONS];
+// Two independent randomized passes of the SAME 25 locations, without recalibrating between blocks.
+// Analysis excludes the first 100 milliseconds of each 2000 ms target presentation.
 const VALIDATION_PASSES=2;
 const DWELL=2000, ITI=250, PRUNE=QUALITY.analysisStartMs;
 const FIND_MS=0;      // optional extra time before recording starts (not in Brand); 0 = Brand's timing
@@ -1351,8 +1360,8 @@ function showValIntro(passedMsg){
   phase='instructions';
   instruct('Step 4 of 5','Accuracy and precision assessment',
     (passedMsg?`<p class="okbox" style="margin:0 0 12px">${esc(passedMsg)}</p>`:'')+
-    '<p>Look at each cross in a 4 by 3 grid. The 12 screen positions are tested twice, in separate random orders (24 presentations). Each cross appears for 2 seconds, followed by 250 ms blank. Do not click. The first 100 ms are excluded from the accuracy analysis.</p><p class="hint">Time for this step: about 1 minute. Next is a short results screen, then 10 practice rounds (about 2–4 minutes). Keep your head still.</p>',
-    [{label:'Start the 24-target assessment',primary:true,fs:true,fn:()=>runValidation('main')},{label:'Recalibrate first',fn:showCalIntro}]);
+    '<p>Look at each cross as it appears. We test 25 different screen positions twice in separate randomized blocks (50 presentations). The first 12 locations follow a 4 by 3 Brand-style layout; 13 additional locations improve screen coverage. Each cross appears for 2 seconds, followed by 250 ms blank. Do not click. The first 100 ms are excluded from the accuracy analysis.</p><p class="hint">Time for this step: about 2 minutes, excluding pauses. Next is a short results screen, then 10 practice rounds (about 2–4 minutes). Keep your head still.</p>',
+    [{label:'Start the 50-presentation assessment',primary:true,fs:true,fn:()=>runValidation('main')},{label:'Recalibrate first',fn:showCalIntro}]);
 }
 async function dwell(){
   const pc=pauseCount, tOn=now();
@@ -1375,10 +1384,10 @@ async function runValidation(kind){
   if(calViewport&&(innerWidth!==calViewport.w||innerHeight!==calViewport.h))viewportChanged=true;
   const st=stages.val;clearStage(st);
   const points=[];
-  // The first 12 replicate Brand's assessment; the second 12 quantify repeatability.
+  // Each pass contains all 25 positions; IDs 1-12 are the fixed Brand-style subset.
+  // Shuffle separately within each block; retain location ID and block in every record.
   for(let pass=1;pass<=VALIDATION_PASSES;pass++){
-    const block=[];let location=0;
-    V_ROWS.forEach(fy=>V_COLS.forEach(fx=>block.push([fx,fy,++location,pass])));
+    const block=VALIDATION_LOCATIONS.map((p,i)=>[p.fx,p.fy,i+1,pass,p.group]);
     for(let j=block.length-1;j>0;j--){const k=(Math.random()*(j+1))|0;[block[j],block[k]]=[block[k],block[j]];}
     points.push(...block);
   }
@@ -1386,7 +1395,7 @@ async function runValidation(kind){
   const results=[],resultsRaw=[],resultsSm=[],intervals=[];let nGot=0,nNull=0,interruptedN=0;
   const pc0=pauseCount;
   for(let i=0;i<points.length;i++){
-    const [x,y]=px(points[i][0],points[i][1]);const locationId=points[i][2],validationPass=points[i][3];let r=null,tries=0;
+    const [x,y]=px(points[i][0],points[i][1]);const locationId=points[i][2],validationPass=points[i][3],validationGroup=points[i][4];let r=null,tries=0;
     activeTaskId=`${kind}_${i+1}`;activeTargetX=x;activeTargetY=y;
     do {
       if(await gate()){if(stop())return;await sleep(RESUME_SETTLE);}
@@ -1394,9 +1403,9 @@ async function runValidation(kind){
       runInterrupted=false;activeAttempt=++tries;
       st.querySelectorAll('.vtarget').forEach(e=>e.remove());
       const dot=document.createElement('div');dot.className='vtarget';dot.style.left=x+'px';dot.style.top=y+'px';dot.innerHTML='<i></i><span></span>';st.appendChild(dot);
-      hud('val',`Point ${i+1} of ${points.length}`,i/points.length);logEvent('val_target',x,y);
+      hud('val',`Block ${validationPass} of ${VALIDATION_PASSES} · point ${(i%VALIDATION_LOCATIONS.length)+1} of ${VALIDATION_LOCATIONS.length}`,i/points.length);logEvent('val_target',x,y);
       r=await dwell();
-      validationAttempts.push({kind,point:i+1,location_id:locationId,validation_pass:validationPass,attempt:tries,targetX:x,targetY:y,
+      validationAttempts.push({kind,point:i+1,location_id:locationId,validation_pass:validationPass,validation_group:validationGroup,attempt:tries,targetX:x,targetY:y,
          interrupted:r.interrupted,elapsedMs:r.elapsedMs,callbacksValid:r.samples.length,callbacksInvalid:r.nulls.length});
       st.querySelectorAll('.vtarget').forEach(e=>e.remove());
     } while(r.interrupted&&tries<3&&!stop());
@@ -1412,7 +1421,7 @@ async function runValidation(kind){
          {analysisStartMs:PRUNE,analysisEndMs:DWELL});
     if(r.interrupted){measured.usable=false;measured.reasons.push('interrupted_after_retries');}
     if(viewportChanged){measured.usable=false;measured.reasons.push('viewport_changed');}
-    const stats=pointStats(i+1,x,y,kept);Object.assign(stats,{location_id:locationId,validation_pass:validationPass,
+    const stats=pointStats(i+1,x,y,kept);Object.assign(stats,{location_id:locationId,validation_pass:validationPass,validation_group:validationGroup,
       usable:measured.usable,reasons:measured.reasons,coveragePct:measured.coveragePct,
       maxGapMs:measured.maxGapMs,callbackRateHz:measured.callbackRateHz,
       meanSampleErrorPx:measured.meanSampleErrorPx,rmsePx:measured.rmsePx,
@@ -1423,7 +1432,7 @@ async function runValidation(kind){
     const rawPoint=pointStats(i+1,x,y,kept.map(p=>({t:p.t,gx:p.rx,gy:p.ry})));
     const smPoint=pointStats(i+1,x,y,kept.map(p=>({t:p.t,gx:p.smx,gy:p.smy})));
     rawPoint.usable=measured.usable;smPoint.usable=measured.usable;
-    rawPoint.location_id=smPoint.location_id=locationId;rawPoint.validation_pass=smPoint.validation_pass=validationPass;
+    rawPoint.location_id=smPoint.location_id=locationId;rawPoint.validation_pass=smPoint.validation_pass=validationPass;rawPoint.validation_group=smPoint.validation_group=validationGroup;
     resultsRaw.push(rawPoint);resultsSm.push(smPoint);
     await sleep(ITI);
   }
@@ -1530,7 +1539,7 @@ function computeResults(results,st){
   const f=(v,d=0)=>v==null?'\u2014':v.toFixed(d);
   const [ga,ca,sa]=accDeg!=null?grade(accDeg,GRADE.accDeg):grade(accPx,GRADE.accPx);
   const [gp,cp,sp]=precDeg!=null?grade(precDeg,GRADE.precDeg):grade(precPx,GRADE.precPx);
-  passed=screens.pass && !viewportChanged; // uses the 24-target repeated independent measurement
+  passed=screens.pass && !viewportChanged; // uses all 50 target presentations; failures remain analyzable
   const worst=ok.length===results.length&&passed?Math.max(sa,sp):2;
 
   let V=[['good','\u2713','Tracking looks good','You can move on.'],
@@ -1538,7 +1547,7 @@ function computeResults(results,st){
            ['poor','!','Quality requirements not met','Inaccurate and missing gaze data are retained. You may continue to the search task or choose to recalibrate.']][worst];
 
   $('#verdict').className='verdict '+V[0]; $('#verdictIc').textContent=V[1]; $('#verdictT').textContent=V[2]; $('#verdictP').textContent=V[3];
-  // The repeated validation assessment, not an extra five-point check, determines screening quality.
+  // The repeated 25-location validation assessment, not an extra five-point check, determines screening quality.
 
   $('#metricGrid').innerHTML=`
     <div class="metric"><div class="k">Accuracy</div><div class="v mono">${f(accPx)}<span class="u">px</span></div><div class="sub">${accDeg!=null?accDeg.toFixed(2)+'\u00b0 visual angle'+(distSource!=='tape measure'?' (estimated)':''):'no distance, so px only'}</div><div class="sub">${xyLine(ax.accX,ax.accY,true)}</div><div class="sub ${ca}">${ga}</div></div>
@@ -1782,9 +1791,9 @@ function saveSession(){
 }
 function saveValidation(){ const s=lastSummary; if(!s)return false; const q=v=>`"${String(v).replace(/"/g,'""')}"`;
   const pxdeg=v=>v==null?',':`${v.toFixed(1)},${pxToDeg(v)==null?'':pxToDeg(v).toFixed(3)}`;
-  const rows=['point,location_id,validation_pass,target_x,target_y,mean_gaze_x,mean_gaze_y,accuracy_px,accuracy_deg,precision_px,precision_deg,valid_n,accuracy_x_px,accuracy_x_deg,accuracy_y_px,accuracy_y_deg,precision_x_px,precision_x_deg,precision_y_px,precision_y_deg,accuracy_raw_px,accuracy_raw_deg,precision_raw_px,precision_raw_deg,accuracy_smoothed_px,accuracy_smoothed_deg,precision_smoothed_px,precision_smoothed_deg'];
+  const rows=['point,location_id,validation_pass,validation_group,target_x,target_y,mean_gaze_x,mean_gaze_y,accuracy_px,accuracy_deg,precision_px,precision_deg,valid_n,accuracy_x_px,accuracy_x_deg,accuracy_y_px,accuracy_y_deg,precision_x_px,precision_x_deg,precision_y_px,precision_y_deg,accuracy_raw_px,accuracy_raw_deg,precision_raw_px,precision_raw_deg,accuracy_smoothed_px,accuracy_smoothed_deg,precision_smoothed_px,precision_smoothed_deg'];
   s.results.forEach((r,k)=>{const ad=r.accPx!=null?pxToDeg(r.accPx):null,pd=r.precPx!=null?pxToDeg(r.precPx):null;
-    rows.push(`${r.i},${r.location_id||''},${r.validation_pass||''},${r.x},${r.y},${r.mgx==null?'':r.mgx.toFixed(1)},${r.mgy==null?'':r.mgy.toFixed(1)},${r.accPx==null?'':r.accPx.toFixed(1)},${ad==null?'':ad.toFixed(3)},${r.precPx==null?'':r.precPx.toFixed(1)},${pd==null?'':pd.toFixed(3)},${r.n},${pxdeg(r.accX)},${pxdeg(r.accY)},${pxdeg(r.precX)},${pxdeg(r.precY)},${pxdeg((s.resultsRaw[k]||{}).accPx)},${pxdeg((s.resultsRaw[k]||{}).precPx)},${pxdeg((s.resultsSm[k]||{}).accPx)},${pxdeg((s.resultsSm[k]||{}).precPx)}`);});
+    rows.push(`${r.i},${r.location_id||''},${r.validation_pass||''},${r.validation_group||''},${r.x},${r.y},${r.mgx==null?'':r.mgx.toFixed(1)},${r.mgy==null?'':r.mgy.toFixed(1)},${r.accPx==null?'':r.accPx.toFixed(1)},${ad==null?'':ad.toFixed(3)},${r.precPx==null?'':r.precPx.toFixed(1)},${pd==null?'':pd.toFixed(3)},${r.n},${pxdeg(r.accX)},${pxdeg(r.accY)},${pxdeg(r.precX)},${pxdeg(r.precY)},${pxdeg((s.resultsRaw[k]||{}).accPx)},${pxdeg((s.resultsRaw[k]||{}).precPx)},${pxdeg((s.resultsSm[k]||{}).accPx)},${pxdeg((s.resultsSm[k]||{}).precPx)}`);});
   const kv=(k,v)=>rows.push(`${k},${v==null?'':v}`);
   rows.push('');
   kv('participant',s.pid);kv('visit_type',studyVisit);kv('eye_tracker_experience',experience);kv('optional_name',q(participantName));
@@ -1816,11 +1825,11 @@ function saveValidation(){ const s=lastSummary; if(!s)return false; const q=v=>`
   kv('camera_fov_deg_implied',impliedFov!=null?impliedFov.toFixed(1):'');
   kv('px_per_cm',s.pxPerCm||''); kv('screen_w',s.screenW); kv('screen_h',s.screenH); kv('fullscreen',s.fullscreen?'yes':'no');
   kv('viewport_changed_since_calibration',s.viewportChanged?'yes':'no'); kv('position_pauses',s.pauses); kv('calibration_runs',s.calRuns);
-  kv('smoothing',emaAlpha<1?'on':'off'); kv('ema_alpha',emaAlpha); kv('regression',REGRESSION); kv('kalman_filter',kalmanOn?'on':'off'); kv('calibration_points',CAL.length); kv('calibration_samples_per_point',CAL_SAMPLES);   kv('validation_quality_passed',passed?'yes':'no'); kv('independent_validation_points',V_COLS.length*V_ROWS.length*VALIDATION_PASSES); kv('independent_validation_passes',VALIDATION_PASSES);
+  kv('smoothing',emaAlpha<1?'on':'off'); kv('ema_alpha',emaAlpha); kv('regression',REGRESSION); kv('kalman_filter',kalmanOn?'on':'off'); kv('calibration_points',CAL.length); kv('calibration_samples_per_point',CAL_SAMPLES);   kv('validation_quality_passed',passed?'yes':'no'); kv('independent_validation_points',VALIDATION_LOCATIONS.length*VALIDATION_PASSES); kv('independent_validation_distinct_locations',VALIDATION_LOCATIONS.length); kv('independent_validation_passes',VALIDATION_PASSES);
     kv('calibration_check_results','not applicable: no extra check');
   kv('calibration_check_rule',q(JSON.stringify(QUALITY)+'; callback validity >= '+PASS_MIN_VALID+'%; all check regions required; window unchanged'));
   kv('distance_rule_cm',`${DIST_MIN}-${DIST_MAX}`); kv('validation_target','cross with shrinking ring, 48 px, on the dark calibration background');
-  kv('validation_grid_x_fractions',V_COLS.join(';')); kv('validation_grid_y_fractions',V_ROWS.join(';'));kv('validation_first_pass_comparable_to_brand','12 targets; same nominal timing; not same hardware or exact geometry'); kv('validation_target_ms',FIND_MS+DWELL); kv('validation_blank_ms',ITI); kv('validation_pruned_ms',PRUNE); kv('validation_extra_find_ms',FIND_MS);
+  kv('validation_grid_x_fractions',V_COLS.join(';')); kv('validation_grid_y_fractions',V_ROWS.join(';'));kv('validation_extended_coordinates',q(JSON.stringify(EXTENDED_VALIDATION_LOCATIONS.map(p=>[p.fx,p.fy]))));kv('validation_brand_reference_location_ids','1-12');kv('validation_first_pass_comparable_to_brand','12 identifiable Brand-style subset locations within each pass; same nominal timing; not same hardware or exact geometry'); kv('validation_target_ms',FIND_MS+DWELL); kv('validation_blank_ms',ITI); kv('validation_pruned_ms',PRUNE); kv('validation_extra_find_ms',FIND_MS);
   kv('ipd_mm_assumed',IPD_MM); kv('camera_fov_deg_assumed',CAM_FOV_DEG);
   const na=v=>v||'not answered';
   kv('demo_age',na(demo.age)); kv('demo_sex',na(demo.sex));
@@ -1986,7 +1995,7 @@ $('#finishBtn').onclick=finish;
    5b · ITEM-LEVEL VISUAL SEARCH (Brand-inspired adaptation)
    Engbert & Kliegl (2003) implemented inline, no extra libraries.
    ============================================================ */
-// Brand's visual search component uses 50 trials. These are distinct from the 12 point validation task.
+// Brand's visual search component uses 50 trials. These are distinct from the 50 dot-validation presentations.
 const SEARCH_TRIALS=50;         // Brand's main task, two normal E targets + 16 mirror E distractors
 const PRACTICE_TRIALS=10;       // Brand's 10-trial abbreviated familiarization task (an adaptation without separate training visit)
 const SEARCH_REF_W=1366, SEARCH_REF_H=768;  // Brand et al. reference display, CSS pixels
