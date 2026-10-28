@@ -155,9 +155,15 @@
   .searchbar{position:absolute;left:0;right:0;top:0;z-index:20;display:flex;gap:14px;align-items:center;padding:12px 18px;background:#fff;border-bottom:1px solid var(--line);color:var(--ink);font-size:14px}
   .searchbar .tag{color:var(--mut)} .searchbar .spacer{flex:1}
   #s-search{background:#fff} #searchArea{position:absolute;inset:0}
-  .stim{position:absolute;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);width:110px;height:150px;margin:-75px 0 0 -55px;font-family:ui-monospace,monospace;color:#777;user-select:none}
-  .stim div{display:flex;align-items:center;justify-content:center;font-size:30px;line-height:1}
-  .stim .c{font-weight:700;color:#111} .stim.target{cursor:pointer} .stim .c.mir{transform:scaleX(-1)}
+  /* Brand-reference border 165 x 245 CSS px; scale the entire 3 x 3 stimulus together. */
+  .stim{position:absolute;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);width:165px;height:245px;
+    margin:-122.5px 0 0 -82.5px;font-family:ui-monospace,monospace;color:#777;user-select:none;
+    transform:scale(var(--stim-scale,1));transform-origin:center center;}
+  .stim div{display:flex;align-items:center;justify-content:center;font-size:48px;line-height:1}
+  .stim .c{font-size:75px;font-weight:700;color:#111} .stim.target{cursor:pointer} .stim .c.mir{transform:scaleX(-1)}
+  /* Selection feedback appears only after a correct click, not before. */
+  .stim.found .c{color:#2F6E63}
+  .stim.practice-found .c{color:#16744F}
 
   /* results */
   .verdict{display:grid;grid-template-columns:30px 1fr;gap:12px;align-items:start;border-radius:12px;padding:14px 18px;margin:0 0 20px;border:1px solid var(--line)}
@@ -212,7 +218,8 @@
       <div class="panel on" id="p-welcome">
         <p class="eyebrow">Webcam eye tracking</p>
         <h1>Gaze Check</h1>
-        <p>Welcome to the WebGazer eye tracking validation study. You will set up your webcam, attempt a 12 point calibration, look at 12 targets for the accuracy check, and complete a 50 trial letter search task. Poor tracking accuracy does not prevent participation. We also retain calibration failures and incomplete measurements when you submit.</p>
+        <p>Welcome to the WebGazer eye tracking validation study. You will set up your webcam, complete a 12 point calibration, look at 24 accuracy targets (two sets of 12), practice finding letters, and complete a 50 trial letter search task.</p>
+        <p class="okbox"><b>Estimated total time: about 15–25 minutes</b><span>Most of the time is spent setting up the camera and finding letters. It may take longer if you need a retry or more time to find targets. We will show an estimate before each step.</span></p>
         <div class="okbox" style="margin:16px 0" role="note" aria-label="Study privacy notice">
           <b>Privacy notice</b>
           <p style="margin:7px 0">Webcam images are used temporarily in your browser to estimate where you are looking. <b>We do not save or upload webcam photos, video, or face images.</b> The study collects predicted gaze positions, timestamps, calibration and validation measurements, target positions, clicks and response times, browser and device information, and any questionnaire answers you provide.</p>
@@ -244,6 +251,7 @@
       <div class="panel" id="p-demo">
         <p class="eyebrow">Set up · 1 of 5</p>
         <h1>Demographic questions</h1>
+        <p class="hint">Time for this step: about 1 minute. Up next: computer and camera questions (about 1 minute).</p>
         <p class="hint">These help describe who took part. Every question is optional: skip any you’d rather not answer.</p>
         <div class="field"><label for="demoAge">Age</label>
           <div class="tapein"><input id="demoAge" type="number" inputmode="numeric" min="1" max="120" step="1" style="width:110px" autocomplete="off"><span class="hint">years</span>
@@ -285,6 +293,7 @@
       <div class="panel" id="p-device">
         <p class="eyebrow">Set up · 2 of 5</p>
         <h1>Computer and camera</h1>
+        <p class="hint">Time for this step: about 1 minute. Up next: vision questions (about 1 minute).</p>
         <p class="hint">Webcam tracking quality depends a lot on the hardware, so we note what you're using. If you're not sure, leave it blank.</p>
         <div class="field"><label id="lblDevType">What are you using?</label>
           <div class="seg" role="radiogroup" aria-labelledby="lblDevType">
@@ -310,6 +319,7 @@
       <div class="panel" id="p-vision">
         <p class="eyebrow">Set up · 3 of 5</p>
         <h1>Vision questions</h1>
+        <p class="hint">Time for this step: about 1 minute. Up next: measuring your screen (about 1 minute).</p>
         <p class="hint">You need to see the dots clearly, but glasses reflect light and can confuse the tracker. Your answers tell you what to do, and are saved with your data. You can skip any question.</p>
         <div class="field"><label id="lblVisUsual">Do you usually wear glasses or contact lenses?</label>
           <div class="seg" role="radiogroup" aria-labelledby="lblVisUsual">
@@ -342,6 +352,7 @@
       <div class="panel" id="p-screen">
         <p class="eyebrow">Set up · 4 of 5</p>
         <h1>Measure your screen</h1>
+        <p class="hint">Time for this step: about 1–2 minutes. Up next: a short camera setup and positioning check.</p>
         <p class="hint">Any bank card or ID card works as a ruler (they're all the same size). This lets us report accuracy in real-world units.</p>
         <img class="guide" src="card-guide.webp" width="1280" height="594"
              alt="1. Place the card flat against your screen, touching the glass. 2. Drag the slider (or use − and +) until the grey bar is exactly the same width as your card.">
@@ -366,6 +377,7 @@
       <div class="panel" id="p-prep">
         <p class="eyebrow">Set up · 5 of 5</p>
         <h1>Set yourself up well</h1>
+        <p class="hint">Allow about 1–3 minutes for camera permission and positioning. Once ready, calibration takes about 30 seconds.</p>
         <p class="hint">Webcam eye tracking is only as good as the setup. These five things make the biggest difference:</p>
         <img class="guide" src="setup-guide.webp" width="995" height="280"
              alt="A person sitting at a laptop with the webcam at eye level, facing a window so soft daylight falls on their face.">
@@ -400,7 +412,7 @@
     <div class="sheet"><div class="card wide">
       <p class="eyebrow">Camera check</p>
       <h1 id="distTitle">Get into position</h1>
-      <p id="distIntro">Sit comfortably, face the screen and hold still. Continue unlocks when your face is found and you've held still for a moment.</p>
+      <p id="distIntro">Sit comfortably, face the screen and hold still. Continue unlocks when your face is found and you've held still for a moment. This check usually takes 1–3 minutes; calibration is about 30 seconds after that.</p>
       <img class="guide" id="tapeGuide" hidden src="measure-guide.webp" width="995" height="281" style="max-width:720px;margin:4px 0 0"
            alt="A tape measure running straight from the webcam to the corner of the eye.">
       <div class="distgrid">
@@ -475,6 +487,7 @@
     <div class="sheet"><div class="card">
       <p class="eyebrow">Data quality</p>
       <h1 style="margin-bottom:16px">How well did it track you?</h1>
+        <p class="hint">You can continue even if the accuracy check was poor. Next: 10 practice rounds (about 2–4 minutes) and 50 study rounds (about 5–12 minutes, depending on your pace).</p>
       <div class="verdict" id="verdict"><div class="ic" id="verdictIc"></div><div><div class="t" id="verdictT"></div><p id="verdictP"></p></div></div>
       <div class="metrics" id="metricGrid"></div>
       <ul class="warnlist" id="resWarn"></ul>
@@ -489,7 +502,7 @@
       </details>
       <p class="note" id="resNote"></p>
       <div class="row">
-        <button class="btn" id="toSearch">Next: search task (any accuracy)</button>
+        <button class="btn" id="toSearch">Next: search practice (any accuracy)</button>
         <button class="btn ghost" id="reCalFromRes">Recalibrate</button><button class="btn ghost" id="toExp">Finish early (incomplete session)</button>
       </div>
       <div class="row tight">
@@ -504,7 +517,7 @@
         </div>
         <div class="sendbox"></div>
       </div>
-      <p class="cite">WebGazer protocol adapted from Brand, Diamond, Thomas &amp; Gilbert-Diamond (2021), <em>Behavior Research Methods, 53</em>(4), 1502–1514. The 12-point accuracy task uses a 4×3 grid, 2000 ms displays, 250 ms blank intervals, and excludes the first 100 ms. Calibration uses a separate 12-point WebGazer training grid. The visual search task has 50 trials. The webcam implementation is not an exact replication of the GP3 hardware protocol. Primary accuracy is mean gaze offset and primary precision is RMS spatial dispersion; sample-level error and successive-point RMS are also exported.
+      <p class="cite">WebGazer protocol adapted from Brand, Diamond, Thomas &amp; Gilbert-Diamond (2021), <em>Behavior Research Methods, 53</em>(4), 1502–1514. The accuracy task repeats the 12-point 4×3 grid twice (24 presentations), 2000 ms displays, 250 ms blank intervals, and excludes the first 100 ms. Calibration uses a separate 12-point WebGazer training grid. The visual search task has 10 practice trials and 50 study trials. The E and # display is scaled from a 165×245 CSS-pixel bordered reference stimulus at 1366×768; its scale and viewport are recorded per trial. The webcam implementation is not an exact replication of the GP3 hardware protocol. Primary accuracy is mean gaze offset and primary precision is RMS spatial dispersion; sample-level error and successive-point RMS are also exported.
         Viewing distance: the participant's tape measurement when given; otherwise estimated from the distance between the eyes in WebGazer's face mesh (average adult interpupillary distance, assumed camera field of view).</p>
     </div></div>
   </section>
@@ -542,9 +555,9 @@
         </div>
         <div class="sendbox"></div>
       </div>
-      <p class="cite">Visual-search task adapted from Brand et al. (2021): 2 targets and 16 distractors. Known target labels define item-level outcomes; clicks do not establish fixation ground truth;
+      <p class="cite">Visual-search task adapted from Brand et al. (2021): 10 practice and 50 experimental trials, each with 2 targets and 16 distractors. Correct target clicks provide the operational ground-truth proxy within 500 ms, not independent eye movement ground truth;
         fixations via an Engbert &amp; Kliegl (2003) velocity detector (λ=6, median-based SD); TP/FP/FN/TN scored within a 500 ms
-        item-level true target labels across five AOI sizes and 100/150/275 ms minimum fixation durations. These target-discrimination metrics cannot be interpreted as fixation measurement sensitivity without independent gaze ground truth.</p>
+        click-linked events across eight AOI sizes and 100/150/275 ms minimum fixation durations. WebGazer stimulus dimensions differ from the GP3 study; comparisons remain methodological, not direct performance equivalence.</p>
     </div></div>
   </section>
 
@@ -669,12 +682,12 @@ const DIST_TOL = 8;            // cm of drift from the starting distance before 
 const GRADE = { accDeg:[3,6], precDeg:[3,6], accPx:[110,220], precPx:[110,220] };  // [good, fair] upper limits; above fair = poor
 const DIST_MIN = 50, DIST_MAX = 70;   // cm, webcam to eye: participants must sit in this range (checked on the tape measurement)
 const PASS_MIN_VALID = 75;            // observed callback validity, distinct from time coverage            // % of frames with a gaze estimate needed to pass the check
-// Validation is assessed at the separate 12 target task, not through an extra 5 point check.
+// Validation uses 12 distinct screen positions shown twice (24 presentations), not an extra five-point check.
 const CONSENT_VERSION = 'webgazer-consent-2026-10-20-v1';
 const CAM_W = 400;
 const QUALITY=GazeQuality.CFG;
 // This is the existing saved build label. It is metadata, not the current ZIP name.
-const STUDY_BUILD='webgazer-validation-2.9-single-zip-backup';
+const STUDY_BUILD='webgazer-validation-3.1-responsive-brand-stimuli-timing-feedback';
 let activeTaskId='', activeTargetX=null, activeTargetY=null, activeAttempt=0, validationAttempts=[], runInterrupted=false;             // camera preview width (px)
 
 /* ============================================================
@@ -737,7 +750,7 @@ let pxPerCm=null, distCm=null, distSource='camera estimate', anchorEstCm=null;
 let paused=false, pauseCount=0, calibrated=false, calRuns=0, checkRuns=[], passed=false, valKind='main', calViewport=null, viewportChanged=false;
 let calibrationAttemptCount=0, calibrationCompleted=false, calibrationHistory=[], calibrationPointsCollected=0, calibrationFailureReason=null, validationCompleted=false, pauseStartedAt=null;
 let lastSummary=null;
-let searchTrials=[], curTrial=null, searchActive=false, lastSearch=null, searchHasRun=false;
+let searchTrials=[], practiceTrials=[], practiceHasRun=false, practiceUploadCursor=0, curTrial=null, searchActive=false, lastSearch=null, searchHasRun=false;
 let trackerOn=false, trackerHooked=false, modelReady=false, modelError=null;
 let camStream=null, camError=null, camFailed=false;
 let lastFaceMs=-1e9, faceInfo=null, liveDistCm=null, lensDistCm=null, faceLuma=null, frameLuma=null, lastLumaMs=0;
@@ -1237,7 +1250,7 @@ async function countdown(st,my,label){
 function showCalIntro(){
   phase='instructions';
   instruct('Step 3 of 5','Follow the dot',
-    `<p>A dot appears in ${CAL.length} places, one after another. Keep your eyes on it until it moves on. It moves by itself, so there\u2019s nothing to click. Each point is shown for 2 seconds, followed by a short blank screen. This takes about 27 seconds.</p><p class="hint">Stay where you are: keep your head still and at the same distance. Press Esc if you need to stop.</p>`,
+    `<p>A dot appears in ${CAL.length} places, one after another. Keep your eyes on it until it moves on. It moves by itself, so there\u2019s nothing to click. Each point is shown for 2 seconds, followed by a short blank screen. This takes about 30 seconds.</p><p class="hint">Up next: the independent accuracy check (about 1 minute). Stay where you are: keep your head still and at the same distance. Press Esc if you need to stop.</p>`,
     [{label:'Start calibration',primary:true,fs:true,fn:runCalibration},{label:'Back to camera check',fn:runDistance}]);
 }
 // Show calibration targets and send their known positions to WebGazer for learning.
@@ -1317,8 +1330,9 @@ function continuePartialCalibration(){
    4 · VALIDATION (Brand-inspired adaptation, not exact replication)
    ============================================================ */
 const V_COLS=[.10,.3667,.6333,.90], V_ROWS=[.12,.50,.88];
-// Brand-inspired task: 12 targets, 2 seconds each and a 250 millisecond blank interval.
+// Two separately randomized passes over Brand's 12 targets. First pass remains a 12-point Brand-style comparison.
 // Analysis excludes the first 100 milliseconds to allow a target-directed eye movement.
+const VALIDATION_PASSES=2;
 const DWELL=2000, ITI=250, PRUNE=QUALITY.analysisStartMs;
 const FIND_MS=0;      // optional extra time before recording starts (not in Brand); 0 = Brand's timing
 function showValIntro(passedMsg){
@@ -1326,8 +1340,8 @@ function showValIntro(passedMsg){
   phase='instructions';
   instruct('Step 4 of 5','Accuracy and precision assessment',
     (passedMsg?`<p class="okbox" style="margin:0 0 12px">${esc(passedMsg)}</p>`:'')+
-    '<p>Look at each cross in the 12 point, 4 by 3 grid. Each cross appears for 2 seconds, followed by a blank screen for 250 milliseconds. Keep looking at its centre, without clicking. The first 100 milliseconds are excluded from the accuracy analysis.</p><p class="hint">This is a separate assessment, not another calibration. It takes approximately 27 seconds. Keep your head still.</p>',
-    [{label:'Start the 12 point assessment',primary:true,fs:true,fn:()=>runValidation('main')},{label:'Recalibrate first',fn:showCalIntro}]);
+    '<p>Look at each cross in a 4 by 3 grid. The 12 screen positions are tested twice, in separate random orders (24 presentations). Each cross appears for 2 seconds, followed by 250 ms blank. Do not click. The first 100 ms are excluded from the accuracy analysis.</p><p class="hint">Time for this step: about 1 minute. Next is a short results screen, then 10 practice rounds (about 2–4 minutes). Keep your head still.</p>',
+    [{label:'Start the 24-target assessment',primary:true,fs:true,fn:()=>runValidation('main')},{label:'Recalibrate first',fn:showCalIntro}]);
 }
 async function dwell(){
   const pc=pauseCount, tOn=now();
@@ -1349,13 +1363,19 @@ async function runValidation(kind){
   webgazer.removeMouseEventListeners();
   if(calViewport&&(innerWidth!==calViewport.w||innerHeight!==calViewport.h))viewportChanged=true;
   const st=stages.val;clearStage(st);
-  const points=[]; V_ROWS.forEach(fy=>V_COLS.forEach(fx=>points.push([fx,fy])));
-  for(let i=points.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[points[i],points[j]]=[points[j],points[i]];}
+  const points=[];
+  // The first 12 replicate Brand's assessment; the second 12 quantify repeatability.
+  for(let pass=1;pass<=VALIDATION_PASSES;pass++){
+    const block=[];let location=0;
+    V_ROWS.forEach(fy=>V_COLS.forEach(fx=>block.push([fx,fy,++location,pass])));
+    for(let j=block.length-1;j>0;j--){const k=(Math.random()*(j+1))|0;[block[j],block[k]]=[block[k],block[j]];}
+    points.push(...block);
+  }
   hud('val','Get ready',0);await countdown(st,my,'Look at the cross');if(stop())return;
   const results=[],resultsRaw=[],resultsSm=[],intervals=[];let nGot=0,nNull=0,interruptedN=0;
   const pc0=pauseCount;
   for(let i=0;i<points.length;i++){
-    const [x,y]=px(points[i][0],points[i][1]);let r=null,tries=0;
+    const [x,y]=px(points[i][0],points[i][1]);const locationId=points[i][2],validationPass=points[i][3];let r=null,tries=0;
     activeTaskId=`${kind}_${i+1}`;activeTargetX=x;activeTargetY=y;
     do {
       if(await gate()){if(stop())return;await sleep(RESUME_SETTLE);}
@@ -1365,7 +1385,7 @@ async function runValidation(kind){
       const dot=document.createElement('div');dot.className='vtarget';dot.style.left=x+'px';dot.style.top=y+'px';dot.innerHTML='<i></i><span></span>';st.appendChild(dot);
       hud('val',`Point ${i+1} of ${points.length}`,i/points.length);logEvent('val_target',x,y);
       r=await dwell();
-      validationAttempts.push({kind,point:i+1,attempt:tries,targetX:x,targetY:y,
+      validationAttempts.push({kind,point:i+1,location_id:locationId,validation_pass:validationPass,attempt:tries,targetX:x,targetY:y,
          interrupted:r.interrupted,elapsedMs:r.elapsedMs,callbacksValid:r.samples.length,callbacksInvalid:r.nulls.length});
       st.querySelectorAll('.vtarget').forEach(e=>e.remove());
     } while(r.interrupted&&tries<3&&!stop());
@@ -1381,7 +1401,7 @@ async function runValidation(kind){
          {analysisStartMs:PRUNE,analysisEndMs:DWELL});
     if(r.interrupted){measured.usable=false;measured.reasons.push('interrupted_after_retries');}
     if(viewportChanged){measured.usable=false;measured.reasons.push('viewport_changed');}
-    const stats=pointStats(i+1,x,y,kept);Object.assign(stats,{
+    const stats=pointStats(i+1,x,y,kept);Object.assign(stats,{location_id:locationId,validation_pass:validationPass,
       usable:measured.usable,reasons:measured.reasons,coveragePct:measured.coveragePct,
       maxGapMs:measured.maxGapMs,callbackRateHz:measured.callbackRateHz,
       meanSampleErrorPx:measured.meanSampleErrorPx,rmsePx:measured.rmsePx,
@@ -1392,6 +1412,7 @@ async function runValidation(kind){
     const rawPoint=pointStats(i+1,x,y,kept.map(p=>({t:p.t,gx:p.rx,gy:p.ry})));
     const smPoint=pointStats(i+1,x,y,kept.map(p=>({t:p.t,gx:p.smx,gy:p.smy})));
     rawPoint.usable=measured.usable;smPoint.usable=measured.usable;
+    rawPoint.location_id=smPoint.location_id=locationId;rawPoint.validation_pass=smPoint.validation_pass=validationPass;
     resultsRaw.push(rawPoint);resultsSm.push(smPoint);
     await sleep(ITI);
   }
@@ -1481,15 +1502,24 @@ function computeResults(results,st){
   if(viewportChanged){screens.pass=false;screens.reasons.push('viewport_changed');}
   const track=camStream&&camStream.getVideoTracks()[0], set=track&&track.getSettings?track.getSettings():{};
   const streams={raw:streamSummary(st.resultsRaw||[]),smoothed:streamSummary(st.resultsSm||[])};
+  const passSummaries=[];
+  for(let p=1;p<=VALIDATION_PASSES;p++){
+    const shown=results.filter(r=>r.validation_pass===p);
+    const good=shown.filter(r=>r.usable&&r.accPx!=null);
+    const m=k=>good.length?mean(good.map(r=>r[k])):null;
+    passSummaries.push({pass:p,shown:shown.length,usable:good.length,
+      accuracy_mean_px:m('accPx'),accuracy_mean_deg:m('accPx')==null?null:pxToDeg(m('accPx')),
+      precision_rms_px:m('precPx'),precision_rms_deg:m('precPx')==null?null:pxToDeg(m('precPx'))});
+  }
   validationCompleted=true;
-  lastSummary={pid,accPx,precPx,accDeg,precDeg,ax,streams,resultsRaw:st.resultsRaw||[],resultsSm:st.resultsSm||[],hz,im,isd,validity,results,coverage,screenQuality:screens,interruptedN:st.interruptedN,pxPerCm,distCm,distSource,anchorEstCm,
+  lastSummary={pid,accPx,precPx,accDeg,precDeg,ax,streams,passSummaries,resultsRaw:st.resultsRaw||[],resultsSm:st.resultsSm||[],hz,im,isd,validity,results,coverage,screenQuality:screens,interruptedN:st.interruptedN,pxPerCm,distCm,distSource,anchorEstCm,
     calibration_completed:calibrationCompleted,calibration_attempts:calibrationAttemptCount,calibration_points_collected:calibrationPointsCollected,calibration_failure_reason:calibrationFailureReason,calibration_history:calibrationHistory.slice(),validation_completed:true,
     screenW:innerWidth,screenH:innerHeight,pauses:st.pauses,calRuns,viewportChanged,fullscreen:!!document.fullscreenElement,
     camLabel:track?track.label:'',camRes:set.width?`${set.width}x${set.height}`:'',camFps:set.frameRate?Math.round(set.frameRate):'',nGot:st.nGot};
   const f=(v,d=0)=>v==null?'\u2014':v.toFixed(d);
   const [ga,ca,sa]=accDeg!=null?grade(accDeg,GRADE.accDeg):grade(accPx,GRADE.accPx);
   const [gp,cp,sp]=precDeg!=null?grade(precDeg,GRADE.precDeg):grade(precPx,GRADE.precPx);
-  passed=screens.pass && !viewportChanged; // uses the independent 12 point measurement
+  passed=screens.pass && !viewportChanged; // uses the 24-target repeated independent measurement
   const worst=ok.length===results.length&&passed?Math.max(sa,sp):2;
 
   let V=[['good','\u2713','Tracking looks good','You can move on.'],
@@ -1497,7 +1527,7 @@ function computeResults(results,st){
            ['poor','!','Quality requirements not met','Inaccurate and missing gaze data are retained. You may continue to the search task or choose to recalibrate.']][worst];
 
   $('#verdict').className='verdict '+V[0]; $('#verdictIc').textContent=V[1]; $('#verdictT').textContent=V[2]; $('#verdictP').textContent=V[3];
-  // The 12 point validation screen, not an extra five-point check, determines screening quality.
+  // The repeated validation assessment, not an extra five-point check, determines screening quality.
 
   $('#metricGrid').innerHTML=`
     <div class="metric"><div class="k">Accuracy</div><div class="v mono">${f(accPx)}<span class="u">px</span></div><div class="sub">${accDeg!=null?accDeg.toFixed(2)+'\u00b0 visual angle'+(distSource!=='tape measure'?' (estimated)':''):'no distance, so px only'}</div><div class="sub">${xyLine(ax.accX,ax.accY,true)}</div><div class="sub ${ca}">${ga}</div></div>
@@ -1505,7 +1535,7 @@ function computeResults(results,st){
     <div class="metric"><div class="k">Sampling rate</div><div class="v mono">${f(hz,1)}<span class="u">Hz</span></div><div class="sub">${im!=null?im.toFixed(1)+' \u00b1 '+isd.toFixed(1)+' ms':'\u2014'}</div></div>
     <div class="metric"><div class="k">Callback validity</div><div class="v mono">${validity==null?'\u2014':validity.toFixed(0)}<span class="u">%</span></div><div class="sub">Time coverage ${coverage==null?'—':coverage.toFixed(0)+'%'} · ${ok.length}/${results.length} usable points</div></div>`;
   $('#ptTable tbody').innerHTML=results.map(r=>{const ad=r.accPx!=null?pxToDeg(r.accPx):null,pd=r.precPx!=null?pxToDeg(r.precPx):null;
-    return `<tr><td>${r.i}</td><td class="mono">${r.x}, ${r.y}</td>
+    return `<tr><td>${r.i} (pass ${r.validation_pass||1}, location ${r.location_id||r.i})</td><td class="mono">${r.x}, ${r.y}</td>
       <td class="mono">${r.accPx==null?'\u2014':r.accPx.toFixed(0)+'px'+(ad!=null?' / '+ad.toFixed(2)+'\u00b0':'')+'<div class="xy">'+xyLine(r.accX,r.accY)+'</div>'}</td>
       <td class="mono">${r.precPx==null?'\u2014':r.precPx.toFixed(0)+'px'+(pd!=null?' / '+pd.toFixed(2)+'\u00b0':'')+'<div class="xy">'+xyLine(r.precX,r.precY)+'</div>'}</td>
       <td class="mono">${r.n}${!r.usable?'<div class="xy" style="color:#b44">EXCLUDE: '+esc((r.reasons||[]).join('; '))+'</div>':''}</td></tr>`;}).join('');
@@ -1521,6 +1551,7 @@ function computeResults(results,st){
   drawMap(results);
   const bits=[]; if(accPx!=null) bits.push(`Mean offset ${accPx.toFixed(0)} px${accDeg!=null?' ('+accDeg.toFixed(2)+'\u00b0)':''}${distCm!=null?` at ${Math.round(distCm)} cm (${distSource})`:''}.`);
   const sd=(o,k)=>o[k]==null?'\u2014':`${o[k].toFixed(0)} px${o[k+'Deg']!=null?' ('+o[k+'Deg'].toFixed(2)+'\u00b0)':''}`;
+  if(passSummaries.length>1)bits.push(`Pass 1: ${passSummaries[0].accuracy_mean_px==null?'—':passSummaries[0].accuracy_mean_px.toFixed(0)+' px'}; pass 2: ${passSummaries[1].accuracy_mean_px==null?'—':passSummaries[1].accuracy_mean_px.toFixed(0)+' px'}.`);
   bits.push(`Without smoothing: accuracy ${sd(streams.raw,'accPx')}, precision ${sd(streams.raw,'precPx')}. With smoothing: accuracy ${sd(streams.smoothed,'accPx')}, precision ${sd(streams.smoothed,'precPx')}. Both are saved.`);
   $('#resNote').textContent=bits.join(' ');
   show('res'); placeCam(null);
@@ -1728,15 +1759,17 @@ function saveSession(){
   setup:{demo,device,vision,system:sysInfo},
   calibration:{regression:REGRESSION,kalman:kalmanOn,primary_stream:emaAlpha<1?'smoothed':'raw',
    cal_points:CAL.length,checks:checkRuns,calibration_runs:calRuns,attempts:calibrationAttemptCount,completed:calibrationCompleted,history:calibrationHistory},
-  settings:QUALITY,face_model_source:window.__modelSource,search_trials_completed:searchTrials.length,
+  settings:QUALITY,face_model_source:window.__modelSource,search_trials_completed:searchTrials.length,practice_trials_completed:practiceTrials.length,
+  search_geometry_reference:{viewport_css_px:[1366,768],letter_css_px:[55,75],border_css_px:[165,245],
+    scaling:'proportional to available browser viewport',click_feedback:'target letter changes teal after first correct click'},
   notes:'Screen pass is a screening rule, NOT proof of psychometric validity. In browser WebGazer model inference timestamp is not independently clocked.'};
  download(`gaze_session_${pid}_${stamp()}.json`,JSON.stringify(pack,null,2),'application/json');return true;
 }
 function saveValidation(){ const s=lastSummary; if(!s)return false; const q=v=>`"${String(v).replace(/"/g,'""')}"`;
   const pxdeg=v=>v==null?',':`${v.toFixed(1)},${pxToDeg(v)==null?'':pxToDeg(v).toFixed(3)}`;
-  const rows=['point,target_x,target_y,mean_gaze_x,mean_gaze_y,accuracy_px,accuracy_deg,precision_px,precision_deg,valid_n,accuracy_x_px,accuracy_x_deg,accuracy_y_px,accuracy_y_deg,precision_x_px,precision_x_deg,precision_y_px,precision_y_deg,accuracy_raw_px,accuracy_raw_deg,precision_raw_px,precision_raw_deg,accuracy_smoothed_px,accuracy_smoothed_deg,precision_smoothed_px,precision_smoothed_deg'];
+  const rows=['point,location_id,validation_pass,target_x,target_y,mean_gaze_x,mean_gaze_y,accuracy_px,accuracy_deg,precision_px,precision_deg,valid_n,accuracy_x_px,accuracy_x_deg,accuracy_y_px,accuracy_y_deg,precision_x_px,precision_x_deg,precision_y_px,precision_y_deg,accuracy_raw_px,accuracy_raw_deg,precision_raw_px,precision_raw_deg,accuracy_smoothed_px,accuracy_smoothed_deg,precision_smoothed_px,precision_smoothed_deg'];
   s.results.forEach((r,k)=>{const ad=r.accPx!=null?pxToDeg(r.accPx):null,pd=r.precPx!=null?pxToDeg(r.precPx):null;
-    rows.push(`${r.i},${r.x},${r.y},${r.mgx==null?'':r.mgx.toFixed(1)},${r.mgy==null?'':r.mgy.toFixed(1)},${r.accPx==null?'':r.accPx.toFixed(1)},${ad==null?'':ad.toFixed(3)},${r.precPx==null?'':r.precPx.toFixed(1)},${pd==null?'':pd.toFixed(3)},${r.n},${pxdeg(r.accX)},${pxdeg(r.accY)},${pxdeg(r.precX)},${pxdeg(r.precY)},${pxdeg((s.resultsRaw[k]||{}).accPx)},${pxdeg((s.resultsRaw[k]||{}).precPx)},${pxdeg((s.resultsSm[k]||{}).accPx)},${pxdeg((s.resultsSm[k]||{}).precPx)}`);});
+    rows.push(`${r.i},${r.location_id||''},${r.validation_pass||''},${r.x},${r.y},${r.mgx==null?'':r.mgx.toFixed(1)},${r.mgy==null?'':r.mgy.toFixed(1)},${r.accPx==null?'':r.accPx.toFixed(1)},${ad==null?'':ad.toFixed(3)},${r.precPx==null?'':r.precPx.toFixed(1)},${pd==null?'':pd.toFixed(3)},${r.n},${pxdeg(r.accX)},${pxdeg(r.accY)},${pxdeg(r.precX)},${pxdeg(r.precY)},${pxdeg((s.resultsRaw[k]||{}).accPx)},${pxdeg((s.resultsRaw[k]||{}).precPx)},${pxdeg((s.resultsSm[k]||{}).accPx)},${pxdeg((s.resultsSm[k]||{}).precPx)}`);});
   const kv=(k,v)=>rows.push(`${k},${v==null?'':v}`);
   rows.push('');
   kv('participant',s.pid);kv('visit_type',studyVisit);kv('eye_tracker_experience',experience);kv('optional_name',q(participantName));
@@ -1757,6 +1790,7 @@ function saveValidation(){ const s=lastSummary; if(!s)return false; const q=v=>`
   kv('usable_regions',s.results.filter(r=>r.usable).length);
   kv('quality_gate_pass',s.screenQuality.pass?'yes':'no');
   kv('quality_gate_reasons',q(s.screenQuality.reasons.join('; ')));
+  (s.passSummaries||[]).forEach(x=>{kv(`validation_pass_${x.pass}_accuracy_mean_px`,x.accuracy_mean_px??'');kv(`validation_pass_${x.pass}_accuracy_mean_deg`,x.accuracy_mean_deg??'');kv(`validation_pass_${x.pass}_usable`,x.usable);});
   kv('software_build',STUDY_BUILD);
   kv('viewing_distance_cm',s.distCm==null?'':Math.round(s.distCm)); kv('distance_source',s.distSource); kv('camera_distance_estimate_cm',anchorLensCm);
   kv('distance_measured_by_participant',tapeState==='done'?'yes':'no');
@@ -1767,11 +1801,11 @@ function saveValidation(){ const s=lastSummary; if(!s)return false; const q=v=>`
   kv('camera_fov_deg_implied',impliedFov!=null?impliedFov.toFixed(1):'');
   kv('px_per_cm',s.pxPerCm||''); kv('screen_w',s.screenW); kv('screen_h',s.screenH); kv('fullscreen',s.fullscreen?'yes':'no');
   kv('viewport_changed_since_calibration',s.viewportChanged?'yes':'no'); kv('position_pauses',s.pauses); kv('calibration_runs',s.calRuns);
-  kv('smoothing',emaAlpha<1?'on':'off'); kv('ema_alpha',emaAlpha); kv('regression',REGRESSION); kv('kalman_filter',kalmanOn?'on':'off'); kv('calibration_points',CAL.length); kv('calibration_samples_per_point',CAL_SAMPLES);   kv('validation_quality_passed',passed?'yes':'no'); kv('independent_validation_points',V_COLS.length*V_ROWS.length);
+  kv('smoothing',emaAlpha<1?'on':'off'); kv('ema_alpha',emaAlpha); kv('regression',REGRESSION); kv('kalman_filter',kalmanOn?'on':'off'); kv('calibration_points',CAL.length); kv('calibration_samples_per_point',CAL_SAMPLES);   kv('validation_quality_passed',passed?'yes':'no'); kv('independent_validation_points',V_COLS.length*V_ROWS.length*VALIDATION_PASSES); kv('independent_validation_passes',VALIDATION_PASSES);
     kv('calibration_check_results','not applicable: no extra check');
   kv('calibration_check_rule',q(JSON.stringify(QUALITY)+'; callback validity >= '+PASS_MIN_VALID+'%; all check regions required; window unchanged'));
   kv('distance_rule_cm',`${DIST_MIN}-${DIST_MAX}`); kv('validation_target','cross with shrinking ring, 48 px, on the dark calibration background');
-  kv('validation_grid_x_fractions',V_COLS.join(';')); kv('validation_grid_y_fractions',V_ROWS.join(';')); kv('validation_target_ms',FIND_MS+DWELL); kv('validation_blank_ms',ITI); kv('validation_pruned_ms',PRUNE); kv('validation_extra_find_ms',FIND_MS);
+  kv('validation_grid_x_fractions',V_COLS.join(';')); kv('validation_grid_y_fractions',V_ROWS.join(';'));kv('validation_first_pass_comparable_to_brand','12 targets; same nominal timing; not same hardware or exact geometry'); kv('validation_target_ms',FIND_MS+DWELL); kv('validation_blank_ms',ITI); kv('validation_pruned_ms',PRUNE); kv('validation_extra_find_ms',FIND_MS);
   kv('ipd_mm_assumed',IPD_MM); kv('camera_fov_deg_assumed',CAM_FOV_DEG);
   const na=v=>v||'not answered';
   kv('demo_age',na(demo.age)); kv('demo_sex',na(demo.sex));
@@ -1799,7 +1833,7 @@ function saveAll(){
     }
     // Full-resolution records including unsuccessful calibration, missing values,
     // validation samples, and individual search-trial gaze arrays. No quality gate.
-    if(consentRecord||sessionLog.length||calibrationHistory.length||validationAttempts.length||searchTrials.length){
+    if(consentRecord||sessionLog.length||calibrationHistory.length||validationAttempts.length||searchTrials.length||practiceTrials.length){
       const complete={study_build:STUDY_BUILD,generated_at:new Date().toISOString(),
         participant:pid,visit:studyVisit,consent:consentRecord,consent_name:participantName,
         demographics:demo,device,vision,system:sysInfo,
@@ -1808,7 +1842,7 @@ function saveAll(){
         validation_completed:validationCompleted,validation_quality_passed:validationCompleted?passed:null,
         gaze_events:sessionLog,validation_attempts:validationAttempts,
         camera_checks:checkRuns,validation_summary:lastSummary,
-        search_trials:searchTrials,search_summary:lastSearch};
+        search_trials:searchTrials,practice_trials:practiceTrials,search_summary:lastSearch};
       download(`gaze_full_record_${pid}_${stamp()}.json`,JSON.stringify(complete,null,2),'application/json');
     }
     if(errors.length)download('export_warnings.txt',errors.join('\n'),'text/plain');
@@ -1863,12 +1897,13 @@ function queueCheckpoint(kind){
 // Keep checkpoints in this tab's memory only (never persistent browser storage).
 async function persistCheckpoint(kind){
  if(!StudyUpload.configured||!StudyUpload.status.ready)return false;
- const untilLog=sessionLog.length,untilAttempts=validationAttempts.length,untilChecks=checkRuns.length,untilTrials=searchTrials.length;
+ const untilLog=sessionLog.length,untilAttempts=validationAttempts.length,untilChecks=checkRuns.length,untilTrials=searchTrials.length,untilPractice=practiceTrials.length;
  const batch={participant:pid,visit:studyVisit,eye_tracker_experience:experience,consent_version:consentRecord?.version||null,
     gaze_events:sessionLog.slice(logUploadCursor,untilLog),
     attempts:validationAttempts.slice(attemptUploadCursor,untilAttempts),
     checks:checkRuns.slice(checkUploadCursor,untilChecks),
     search_trials:searchTrials.slice(searchUploadCursor,untilTrials),
+    practice_trials:practiceTrials.slice(practiceUploadCursor,untilPractice),
     validation_summary:['validation_complete','finish','incomplete_finish'].includes(kind)?lastSummary:null,
     calibration_outcome:{completed:calibrationCompleted,attempts:calibrationAttemptCount,points_collected:calibrationPointsCollected,failure_reason:calibrationFailureReason,history:calibrationHistory.slice()},
     validation_completed:validationCompleted,validation_quality_passed:validationCompleted?passed:null,
@@ -1880,7 +1915,7 @@ async function persistCheckpoint(kind){
     viewport:{w:innerWidth,h:innerHeight},recording_active:recording};
  // Advance cursors only after upload.js places the batch into its in-memory queue.
  await StudyUpload.enqueue(kind,batch,STUDY_BUILD);
- logUploadCursor=untilLog;attemptUploadCursor=untilAttempts;checkUploadCursor=untilChecks;searchUploadCursor=untilTrials;
+ logUploadCursor=untilLog;attemptUploadCursor=untilAttempts;checkUploadCursor=untilChecks;searchUploadCursor=untilTrials;practiceUploadCursor=untilPractice;
  return true;
 }
 // Periodic in-memory snapshots avoid huge single batches; closing the tab still loses unsent data.
@@ -1910,12 +1945,41 @@ $('#finishBtn').onclick=finish;
    Engbert & Kliegl (2003) implemented inline, no extra libraries.
    ============================================================ */
 // Brand's visual search component uses 50 trials. These are distinct from the 12 point validation task.
-const SEARCH_TRIALS=50;         // match Brand's 50 search trials; two targets and sixteen distractors per trial
-const SEARCH_MIN_DIST=125;   // dense layout: 18 items require sufficiently separated E centers      // min centre-to-centre spacing (px)
+const SEARCH_TRIALS=50;         // Brand's main task, two normal E targets + 16 mirror E distractors
+const PRACTICE_TRIALS=10;       // Brand's 10-trial abbreviated familiarization task (an adaptation without separate training visit)
+const SEARCH_REF_W=1366, SEARCH_REF_H=768;  // Brand et al. reference display, CSS pixels
+const SEARCH_REF_LETTER_W=55, SEARCH_REF_LETTER_H=75;
+const SEARCH_REF_BORDER_W=165, SEARCH_REF_BORDER_H=245;
+const SEARCH_REF_MIN_CENTER_DIST=150;  // minimum separation between item centers
+const SEARCH_REF_BOTTOM_EXCLUSION=150; // no part of the bordered item in the last 150 px at reference size
+const SEARCH_TRIAL_TIMEOUT=25000;
+// Scaling by browser viewport preserves layout proportions, NOT guaranteed physical visual angle.
+function searchGeometry(){
+ const w=innerWidth,h=innerHeight;
+ const scale=Math.min(w/SEARCH_REF_W,h/SEARCH_REF_H,1.35);
+ const borderW=SEARCH_REF_BORDER_W*scale,borderH=SEARCH_REF_BORDER_H*scale;
+ const top=56+borderH/2+6,bottom=h-SEARCH_REF_BOTTOM_EXCLUSION*scale-borderH/2;
+ const left=borderW/2+10,right=w-borderW/2-10;
+ return {scale,border_w_px:borderW,border_h_px:borderH,letter_w_px:SEARCH_REF_LETTER_W*scale,
+  letter_h_px:SEARCH_REF_LETTER_H*scale,viewport_w_px:w,viewport_h_px:h,
+  bottom_exclusion_px:SEARCH_REF_BOTTOM_EXCLUSION*scale,center_min_sep_px:SEARCH_REF_MIN_CENTER_DIST*scale,
+  left,right,top,bottom,reference_viewport_px:'1366x768',mode:'viewport_proportional_css_pixels'};
+}
+function remainingMinutes(trialsDone,trialsTotal,history){
+ const sec=history.filter(t=>t.startedAt!=null&&t.endedAt!=null&&t.endedAt>t.startedAt)
+   .map(t=>(t.endedAt-t.startedAt)/1000).filter(v=>v>=1&&v<=25);
+ const pace=sec.length>=3?Math.min(25,Math.max(3,median(sec))):10;
+ const minutes=Math.ceil(Math.max(0,trialsTotal-trialsDone)*(pace+.25)/60);
+ return `~${Math.max(1,minutes)} min remaining at ${sec.length>=3?'your':'an estimated'} pace`;
+}
 const EK_LAMBDA=6;              // Engbert & Kliegl velocity threshold (SDs)
 const EK_MIN_SACC=2;            // min consecutive samples to count a saccade
-const AOIS=[{w:40,h:48},{w:60,h:70},{w:85,h:100},{w:110,h:140},{w:135,h:170}];
-// Candidate gaze-to-stimulus AOI sizes, NOT comparable with Brand unless methods are matched.
+const AOIS=[{w:0,h:0},{w:55,h:75},{w:165,h:245},{w:215,h:295},
+  {w:265,h:345},{w:305,h:395},{w:355,h:445},{w:1366,h:768}];
+// AOI pixel sizes follow Brand et al. (2021). The 1366x768 control is the original paper's
+// screen-size AOI, so it is descriptive only on displays with different CSS pixel dimensions.
+// Render Brand's 165x245 reference stimuli on a 1366x768 CSS viewport and scale otherwise.
+// AOIs must be multiplied by the recorded trial scale to keep them aligned with the displayed items.
 const SEARCH_MAX_ATTEMPTS=3;
 const DURS=[100,150,275];      // minimum fixation durations (ms)
 
@@ -1958,32 +2022,50 @@ function searchTrialQuality(tr){
    coverageBinMs:250,minCoveragePct:55,maxGapMs:1000});
  return {usable:m.usable,reasons:m.reasons,coveragePct:m.coveragePct,rateHz:m.callbackRateHz};
 }
-// Place the two target Es and 16 distractors without overlapping them.
+// Create 18 randomized positions. Brand's 165x245 full borders cannot all be
+// non-overlapping on 1366x768 with the reserved bottom 150px; preserve a >=150px
+// CENTER separation and avoid overlap of the central letter while allowing # borders
+// of nearby items to share some screen area. Use a stratified fallback if random packing fails.
 function makeTrial(){
-  const x0=80,x1=innerWidth-80,y0=170,y1=innerHeight-105;
-  if(x1-x0<700||y1-y0<380)return null;
-  const all=[];
-  let tries=0;
-  while(all.length<18&&tries<12000){
-    tries++;const x=x0+Math.random()*(x1-x0),y=y0+Math.random()*(y1-y0);
-    if(all.every(p=>Math.hypot(p.x-x,p.y-y)>=SEARCH_MIN_DIST))all.push({x:Math.round(x),y:Math.round(y)});
-  }
-  if(all.length!==18)return null;
-  const idx=[...all.keys()];
-  for(let k=idx.length-1;k>0;k--){const j=(Math.random()*(k+1))|0;[idx[k],idx[j]]=[idx[j],idx[k]];}
-  const targetSet=new Set(idx.slice(0,2));const targets=[];
-  all.forEach((p,k)=>{p.id=k+1;p.target=targetSet.has(k);if(p.target)targets.push({id:p.id,x:p.x,y:p.y});});
-  return {targets,stim:all,gaze:[],clicks:[],invalidCallbacks:0,startedAt:null,endedAt:null,
-    status:'pending',pauseTriggered:false};
+ const g=searchGeometry();
+ if(innerWidth<1000||innerHeight<600||g.bottom-g.top<2*g.center_min_sep_px-.1||g.right-g.left<5*g.center_min_sep_px-.1)return null;
+ const all=[];
+ for(let tries=0;all.length<18&&tries<12000;tries++){
+   const x=g.left+Math.random()*(g.right-g.left),y=g.top+Math.random()*(g.bottom-g.top);
+   if(all.every(p=>Math.hypot(p.x-x,p.y-y)>=g.center_min_sep_px))all.push({x:Math.round(x),y:Math.round(y)});
+ }
+ if(all.length!==18){
+   // A jittered 6x3 fallback prevents random-packing deadlocks while preserving separation.
+   all.length=0;
+   for(let row=0;row<3;row++)for(let col=0;col<6;col++){
+     const dx=(Math.random()*2-1)*25*g.scale, dy=(Math.random()*2-1)*g.scale;
+     const x=Math.max(g.left,Math.min(g.right,g.left+(g.right-g.left)*col/5+dx));
+     const y=Math.max(g.top,Math.min(g.bottom,g.top+(g.bottom-g.top)*row/2+dy));
+     all.push({x:Math.round(x),y:Math.round(y)});
+   }
+ }
+ // Randomize which of the well-spaced positions carry targets.
+ const idx=[...all.keys()];
+ for(let k=idx.length-1;k>0;k--){const j=(Math.random()*(k+1))|0;[idx[k],idx[j]]=[idx[j],idx[k]];}
+ const targetSet=new Set(idx.slice(0,2));const targets=[];
+ all.forEach((p,k)=>{p.id=k+1;p.target=targetSet.has(k);if(p.target)targets.push({id:p.id,x:p.x,y:p.y});});
+ const {left,right,top,bottom,...recordedGeometry}=g;
+ return {targets,stim:all,geometry:recordedGeometry,gaze:[],clicks:[],invalidCallbacks:0,startedAt:null,endedAt:null,
+   status:'pending',pauseTriggered:false};
 }
 function renderTrial(tr){
  const area=$('#searchArea');area.innerHTML='';
- tr.stim.forEach(p=>{const d=document.createElement('div');d.className='stim'+(p.target?' target':'');
-  d.style.left=p.x+'px';d.style.top=p.y+'px';d.dataset.stimulusId=p.id;
-  for(let k=0;k<9;k++){const cell=document.createElement('div');
-    if(k===4){cell.textContent='E';cell.className=p.target?'c':'c mir';}
-    else cell.textContent='#';d.appendChild(cell);}
-  area.appendChild(d);
+ const scale=tr.geometry?.scale||1;
+ tr.stim.forEach(p=>{
+   const d=document.createElement('div');d.className='stim'+(p.target?' target':'');
+   d.style.left=p.x+'px';d.style.top=p.y+'px';d.style.setProperty('--stim-scale',String(scale));
+   d.dataset.stimulusId=p.id;
+   for(let k=0;k<9;k++){
+     const cell=document.createElement('div');
+     if(k===4){cell.textContent='E';cell.className=p.target?'c':'c mir';}
+     else cell.textContent='#';d.appendChild(cell);
+   }
+   area.appendChild(d);
  });
 }
 function trialUntilDone(tr){return new Promise(resolve=>{
@@ -1991,20 +2073,62 @@ function trialUntilDone(tr){return new Promise(resolve=>{
   function fin(reason){if(done)return;done=true;area.removeEventListener('mousedown',onC);
     document.removeEventListener('keydown',onK);clearTimeout(to);clearInterval(iv);
     tr.endedAt=now();tr.status=reason;tr.quality=searchTrialQuality(tr);resolve(reason);}
-  function onC(e){const x=e.clientX,y=e.clientY;
-    const item=tr.stim.filter(p=>Math.abs(x-p.x)<=55&&Math.abs(y-p.y)<=75)
+  function onC(e){const x=e.clientX,y=e.clientY,scale=tr.geometry?.scale||1;
+    // Participants click near the central letter, not arbitrary overlapping # borders.
+    const item=tr.stim.filter(p=>Math.abs(x-p.x)<=55*scale&&Math.abs(y-p.y)<=75*scale)
       .sort((a,b)=>Math.hypot(x-a.x,y-a.y)-Math.hypot(x-b.x,y-b.y))[0];
-    tr.clicks.push({t:now(),x,y,stimulus_id:item?item.id:null,correct:!!(item&&item.target)});
-    logEvent('click',x,y);if(item&&item.target)hit.add(item.id);
+    const duplicate=!!(item&&hit.has(item.id));
+    tr.clicks.push({t:now(),x,y,stimulus_id:item?item.id:null,
+      correct:!!(item&&item.target),duplicate});
+    logEvent('click',x,y);
+    if(item&&item.target&&!duplicate){
+      hit.add(item.id);
+      const el=area.querySelector(`.stim[data-stimulus-id="${item.id}"]`);
+      if(el)el.classList.add('found',...(tr.practice?['practice-found']:[]));
+      if(tr.practice)$('#searchMsg').textContent=`Practice ${tr.id} of ${PRACTICE_TRIALS}: ${hit.size} of 2 target Es found. Click the other E.`;
+    }
     if(hit.size>=2)fin('completed');
   }
   function onK(e){if(e.code==='Space'){e.preventDefault();fin('skipped');}
     if(e.key==='Escape'){abortTask('Search task stopped');fin('aborted');}}
-  const to=setTimeout(()=>fin('timed_out'),25000);
+  const to=setTimeout(()=>fin('timed_out'),SEARCH_TRIAL_TIMEOUT);
   const iv=setInterval(()=>{if(aborted)fin('aborted');else if(paused||viewportChanged)fin('interrupted');},70);
   area.addEventListener('mousedown',onC);document.addEventListener('keydown',onK);
  });}
-// Run the search task only once per session to avoid mixing in practice effects.
+// Practice uses identical E/# search stimuli but is explicitly excluded from all main-task analyses.
+async function runPractice(){
+  if(practiceHasRun){showMainSearchIntro();return;}
+  practiceHasRun=true;aborted=false;
+  const my=++runId;phase='search_practice';show('search');placeCam(null);practiceTrials=[];
+  for(let ti=0;ti<PRACTICE_TRIALS;ti++){
+    if(aborted||my!==runId)return;
+    if(await gate()){if(aborted||my!==runId)return;await sleep(RESUME_SETTLE);}
+    const tr=makeTrial();
+    if(!tr){abortTask('This browser area is too small for the letter search. Please use a laptop or larger display in full screen.');return;}
+    tr.id=ti+1;tr.practice=true;tr.attempt=1;
+    activeTaskId=`practice_${tr.id}`;activeAttempt=1;
+    renderTrial(tr);curTrial=tr;tr.startedAt=now();searchActive=true;
+    $('#searchMsg').textContent=`PRACTICE ${ti+1}/${PRACTICE_TRIALS} · ${remainingMinutes(ti,PRACTICE_TRIALS,practiceTrials)} · Click two normal Es; green means selected.`;
+    logEvent('practice_trial_start',0,0);
+    const outcome=await trialUntilDone(tr);
+    searchActive=false;logEvent('practice_trial_end',0,0);
+    practiceTrials.push(tr);
+    if(aborted||my!==runId){await queueCheckpoint('task_aborted').catch(()=>{});return;}
+    await queueCheckpoint('search_trial');
+    $('#searchArea').innerHTML='';
+    if(outcome!=='completed')toast('Practice trial '+(ti+1)+' recorded as '+outcome+'. You can continue.');
+    await sleep(250);
+  }
+  curTrial=null;searchActive=false;activeTaskId='';activeAttempt=0;
+  showMainSearchIntro();
+}
+function showMainSearchIntro(){
+  phase='instructions';
+  instruct('Practice finished','Now begin the recorded visual search',
+    '<p>You have completed 10 practice rounds. The next 50 rounds are the actual study task. Allow about 5–12 minutes depending on how quickly you find targets. Keep looking at the centre of each normal-facing E when you click. A clicked target turns teal so you know it was selected. Practice trials are saved separately and excluded from the main analysis.</p>', 
+    [{label:'Start 50 study trials',primary:true,fs:true,fn:runSearch},{label:'Finish early and submit',fn:finish}]);
+}
+// Run the scored search task only once per session to avoid mixing in repeated practice effects.
 async function runSearch(){
   if(searchHasRun){toast('This study session already contains a visual search attempt. Complete or finish the current session.');if(lastSearch)show('sres');return;}
   // Gaze quality is an analysis flag, not a condition for completing the behavioral task.
@@ -2018,12 +2142,12 @@ async function runSearch(){
       if(await gate()){if(aborted||my!==runId)return;await sleep(RESUME_SETTLE);}
       tr=makeTrial();
       if(!tr){
-        abortTask('The screen is too small for 18 separated search items. Use a larger monitor or reduce browser zoom and recalibrate.');
+        abortTask('This browser area is too small for 18 separated search items. Please enter full screen or use a larger display, then recalibrate.');
         return;
       }
       tr.id=ti+1;tr.attempt=retry;activeTaskId=`search_${tr.id}`;activeAttempt=retry;
       renderTrial(tr);curTrial=tr;tr.startedAt=now();searchActive=true;
-      $('#searchMsg').textContent=`Round ${ti+1} of ${SEARCH_TRIALS}: click the two normal-facing “E”s.`;
+      $('#searchMsg').textContent=`STUDY ${ti+1}/${SEARCH_TRIALS} · ${remainingMinutes(ti,SEARCH_TRIALS,searchTrials)} · Click the two normal-facing Es.`;
       logEvent('search_trial_start',0,0);
       const outcome=await trialUntilDone(tr);
       searchActive=false;logEvent('search_trial_end',0,0);
@@ -2050,13 +2174,69 @@ function scoreSearch(){
   const main=scoreStream(g=>g),raw=scoreStream(g=>({t:g.t,x:g.rx,y:g.ry})),
     smoothed=scoreStream(g=>({t:g.t,x:g.smx,y:g.smy}));
   lastSearch={rows:main.rows,rocByDur:main.rocByDur,byStream:{raw,smoothed},
-    metric:'item-level target-discrimination, NOT independently validated fixation sensitivity',
+    metric:'click-linked fixation detection (Brand-style operational ground truth; not independently observed fixations)',
+    itemLevel:scoreItemStream(g=>g),
     validTrials:searchTrials.filter(t=>(t.status==='completed'||t.status==='timed_out')&&t.quality?.usable).length};
   unsaved=true;phase='search_results';renderSearchResults();
   queueCheckpoint('search_complete').catch(()=>{});
 }
+// Account for the actual stimulus scale in every fixation area-of-interest.
+// The whole-screen AOI is a control and uses the current viewport.
+function aoSize(A,tr){
+ if(A.w===1366&&A.h===768)return {w:tr.geometry?.viewport_w_px||1366,h:tr.geometry?.viewport_h_px||768};
+ const scale=tr.geometry?.scale||1;
+ return {w:A.w*scale,h:A.h*scale};
+}
 // These counts compare gaze with target items, not with an independent eye tracker.
 function scoreStream(pick){
+  // Brand-style scoring: a correct target click stands in for a true target fixation.
+  // Each correct click is matched at most once to an in-target detected fixation
+  // that ended within the previous 500 ms. Unmatched clicks are FN; unmatched
+  // in-target fixations are FP; outside-target fixations without following clicks are TN.
+  // This is operational click-derived ground truth, not independently measured gaze.
+  const rows=[],rocByDur={};
+  DURS.forEach(D=>{
+    const pts=[];
+    AOIS.forEach(A=>{
+      let TP=0,FP=0,FN=0,TN=0;
+      searchTrials.filter(tr=>['completed','timed_out','skipped'].includes(tr.status)).forEach(tr=>{
+        const fix=detectFixations(tr.gaze.map(pick).filter(g=>Number.isFinite(g.x)&&Number.isFinite(g.y)),D);
+        const clicks=tr.clicks.filter(c=>c.correct&&!c.duplicate&&c.stimulus_id!=null)
+          .slice().sort((a,b)=>a.t-b.t);
+        const used=new Set();
+        for(const click of clicks){
+          const target=tr.targets.find(p=>p.id===click.stimulus_id);
+          if(!target){FN++;continue;}
+          let match=-1,latest=-Infinity;
+          fix.forEach((f,j)=>{
+            if(used.has(j))return;
+            if(f.t1>click.t||click.t-f.t1>500)return;
+            if(Math.abs(f.x-target.x)<=aoSize(A,tr).w/2&&Math.abs(f.y-target.y)<=aoSize(A,tr).h/2&&f.t1>latest){
+              match=j;latest=f.t1;
+            }
+          });
+          if(match>=0){TP++;used.add(match);}else FN++;
+        }
+        fix.forEach((f,j)=>{
+          if(used.has(j))return;
+          const onTarget=tr.targets.some(t=>Math.abs(f.x-t.x)<=aoSize(A,tr).w/2&&Math.abs(f.y-t.y)<=aoSize(A,tr).h/2);
+          if(onTarget)FP++;
+          else if(!clicks.some(c=>c.t>=f.t1&&c.t-f.t1<=500))TN++;
+        });
+      });
+      const sens=TP+FN?TP/(TP+FN):null,spec=TN+FP?TN/(TN+FP):null;
+      rows.push({D,A,TP,FP,FN,TN,sens,spec});
+      if(sens!=null&&spec!=null)pts.push({fpr:1-spec,tpr:sens});
+    });
+    const hasTrials=pts.length>0;
+    pts.push({fpr:0,tpr:0},{fpr:1,tpr:1});pts.sort((a,b)=>a.fpr-b.fpr||a.tpr-b.tpr);
+    let auc=null;if(hasTrials){auc=0;for(let k=1;k<pts.length;k++)auc+=(pts[k].fpr-pts[k-1].fpr)*(pts[k].tpr+pts[k-1].tpr)/2;}
+    rocByDur[D]={pts,auc};
+  });
+  return {rows,rocByDur};
+}
+// Secondary analysis preserves the earlier item-level discrimination metric.
+function scoreItemStream(pick){
   const rows=[],rocByDur={};
   DURS.forEach(D=>{
     const pts=[];
@@ -2065,7 +2245,7 @@ function scoreStream(pick){
       searchTrials.filter(t=>['completed','timed_out'].includes(t.status)&&t.quality?.usable).forEach(tr=>{
         const fix=detectFixations(tr.gaze.map(pick).filter(g=>Number.isFinite(g.x)&&Number.isFinite(g.y)),D);
         tr.stim.forEach(item=>{
-          const fixated=fix.some(f=>Math.abs(f.x-item.x)<=A.w/2 && Math.abs(f.y-item.y)<=A.h/2);
+          const fixated=fix.some(f=>Math.abs(f.x-item.x)<=aoSize(A,tr).w/2 && Math.abs(f.y-item.y)<=aoSize(A,tr).h/2);
           if(item.target&&fixated)TP++;
           else if(item.target&&!fixated)FN++;
           else if(!item.target&&fixated)FP++;
@@ -2085,13 +2265,13 @@ function scoreStream(pick){
 }
 function renderSearchResults(){
   const nc=searchTrials.reduce((s,t)=>s+t.clicks.length,0), ng=searchTrials.reduce((s,t)=>s+t.gaze.length,0);
-  $('#sresIntro').textContent=`${searchTrials.length} rounds (${lastSearch.validTrials} scored), ${nc} clicks, ${ng} gaze samples. The ROC compares target and distractor items, NOT known human fixations.`;
+  $('#sresIntro').textContent=`${PRACTICE_TRIALS} practice rounds saved separately; ${searchTrials.length} study rounds (${lastSearch.validTrials} quality-usable), ${nc} clicks, ${ng} gaze samples. ROC uses correct-click-linked putative target fixations rather than known gaze truth.`;
   $('#rocTable tbody').innerHTML=lastSearch.rows.map(r=>`<tr><td>${r.D}</td><td class="mono">${r.A.w}×${r.A.h}</td><td class="mono">${r.TP}</td><td class="mono">${r.FP}</td><td class="mono">${r.FN}</td><td class="mono">${r.TN}</td><td class="mono">${r.sens==null?'—':r.sens.toFixed(2)}</td><td class="mono">${r.spec==null?'—':r.spec.toFixed(2)}</td></tr>`).join('');
   const aucs=DURS.map(D=>`${D} ms: AUC ${lastSearch.rocByDur[D].auc==null?'NA':lastSearch.rocByDur[D].auc.toFixed(2)}`).join('; ');
-  $('#sresNote').textContent=`${aucs}. These are descriptive target-versus-distractor discrimination statistics, not independently validated fixation sensitivity/specificity. Only trials passing time-coverage checks contribute; see trial files. Webcam sampling intervals vary by hardware and browser; inspect exported raw trials before interpreting results.`;
+  $('#sresNote').textContent=`${aucs}. Brand-style operational 500-ms click-linked fixation scoring, with 100/150/275 ms minimum durations. Clicks are imperfect proxies for true fixation. Poor-quality and incomplete trials are retained. Stimulus reference is 165×245 px at 1366×768; other viewports scale proportionally, and AOIs follow that scale. This is not a hardware-equivalent replication.`;
   drawROC(); show('sres');
 }
-// This plot shows item discrimination based on our predicted gaze classifications.
+// This plot shows Brand-style click-linked detection using click timing as an imperfect proxy.
 function drawROC(){
   const cv=$('#roc'),c=cv.getContext('2d'),W=cv.width,H=cv.height,pad=56;
   const X0=pad,Y0=H-pad, px=x=>X0+x*(W-pad-X0), py=y=>Y0-y*(Y0-pad);
@@ -2100,8 +2280,8 @@ function drawROC(){
   c.strokeStyle='rgba(255,255,255,.06)';for(let g=0.25;g<1;g+=0.25){c.beginPath();c.moveTo(px(g),py(0));c.lineTo(px(g),py(1));c.moveTo(px(0),py(g));c.lineTo(px(1),py(g));c.stroke();}
   c.strokeStyle='#3C4A5C';c.setLineDash([5,5]);c.beginPath();c.moveTo(px(0),py(0));c.lineTo(px(1),py(1));c.stroke();c.setLineDash([]);
   c.fillStyle='#8A93A3';c.font='13px Inter,sans-serif';c.textAlign='center';
-  c.fillText('Distractor gaze rate (1 − specificity)',(px(0)+px(1))/2,H-16);
-  c.save();c.translate(18,(py(0)+py(1))/2);c.rotate(-Math.PI/2);c.fillText('Target gaze rate (sensitivity)',0,0);c.restore();
+  c.fillText('False-positive rate (1 − specificity)',(px(0)+px(1))/2,H-16);
+  c.save();c.translate(18,(py(0)+py(1))/2);c.rotate(-Math.PI/2);c.fillText('Click-linked sensitivity',0,0);c.restore();
   const col={100:'#33D6BE',150:'#F2B33D',275:'#F2705B'}; let ly=pad+8; c.textAlign='left';
   DURS.forEach(D=>{ const r=lastSearch.rocByDur[D], k=col[D]||'#fff'; c.strokeStyle=k;c.fillStyle=k;c.lineWidth=2;
     c.beginPath(); r.pts.forEach((p,i)=>{const Xv=px(p.fpr),Yv=py(p.tpr); i?c.lineTo(Xv,Yv):c.moveTo(Xv,Yv);}); c.stroke();
@@ -2110,23 +2290,24 @@ function drawROC(){
 }
 function saveSearch(){
  if(!lastSearch)return false;
- const cols=['participant','visit','signal','min_fix_ms','aoi_w','aoi_h','TP','FP','FN','TN',
+ const cols=['participant','visit','signal','method','min_fix_ms','aoi_w','aoi_h','TP','FP','FN','TN',
   'target_detection_rate','distractor_rejection_rate','derived_auc','interpretation'];
  const rows=[];
- for(const name of ['primary','raw','smoothed']){
-  const t=name==='primary'?lastSearch:lastSearch.byStream[name];
+ for(const name of ['primary','raw','smoothed','item_level']){
+  const t=name==='primary'?lastSearch:(name==='item_level'?lastSearch.itemLevel:lastSearch.byStream[name]);
   t.rows.forEach(r=>rows.push({participant:pid,visit:studyVisit,signal:name,
+    method:name==='item_level'?'target_vs_distractor_item_classification':'click_linked_500ms',
     min_fix_ms:r.D,aoi_w:r.A.w,aoi_h:r.A.h,TP:r.TP,FP:r.FP,FN:r.FN,TN:r.TN,
     target_detection_rate:r.sens,distractor_rejection_rate:r.spec,
     derived_auc:t.rocByDur[r.D].auc,
-    interpretation:'target-vs-distractor item discrimination; not independent fixation validation'}));
+    interpretation:name==='item_level'?'target-vs-distractor item discrimination':'click-linked proxy for fixation ground truth; not independent fixation validation'}));
  }
  download(`gaze_search_item_metrics_${pid}_${stamp()}.csv`,asCSV(cols,rows));return true;
 }
 function saveSearchTrials(){
  if(!searchTrials.length)return false;
  const cols=['participant','visit','trial','attempt','status','started_at_ms','ended_at_ms',
-  'stimulus_id','target','x','y','clicked','first_click_ms','click_correct','trial_gaze_n','invalid_callbacks','gaze_usable','gaze_coverage_pct','gaze_exclusion_reason'];
+  'stimulus_id','target','x','y','clicked','first_click_ms','click_correct','stimulus_scale','stimulus_border_w_px','stimulus_border_h_px','stimulus_letter_w_px','stimulus_letter_h_px','viewport_w_px','viewport_h_px','trial_gaze_n','invalid_callbacks','gaze_usable','gaze_coverage_pct','gaze_exclusion_reason'];
  const out=[];
  searchTrials.forEach(tr=>tr.stim.forEach(item=>{
    const hits=tr.clicks.filter(c=>c.stimulus_id===item.id);
@@ -2134,7 +2315,10 @@ function saveSearchTrials(){
      started_at_ms:tr.startedAt?tr.startedAt-t0:null,ended_at_ms:tr.endedAt?tr.endedAt-t0:null,
      stimulus_id:item.id,target:item.target,x:item.x,y:item.y,clicked:hits.length>0,
      first_click_ms:hits.length?hits[0].t-t0:null,click_correct:hits.length?hits[0].correct:null,
-     trial_gaze_n:tr.gaze.length,invalid_callbacks:tr.invalidCallbacks||0,
+     stimulus_scale:tr.geometry?.scale,stimulus_border_w_px:tr.geometry?.border_w_px,
+     stimulus_border_h_px:tr.geometry?.border_h_px,stimulus_letter_w_px:tr.geometry?.letter_w_px,
+     stimulus_letter_h_px:tr.geometry?.letter_h_px,viewport_w_px:tr.geometry?.viewport_w_px,
+     viewport_h_px:tr.geometry?.viewport_h_px,trial_gaze_n:tr.gaze.length,invalid_callbacks:tr.invalidCallbacks||0,
      gaze_usable:tr.quality?.usable||false,gaze_coverage_pct:tr.quality?.coveragePct,
      gaze_exclusion_reason:(tr.quality?.reasons||[]).join(';')});
  }));
@@ -2142,8 +2326,8 @@ function saveSearchTrials(){
 }
 function showSearchIntro(){ phase='instructions';
   instruct('Study task','Find the letters',
-    '<p>You\u2019ll see a screen full of the letter \u201cE\u201d. Most face backwards, but <b>two face the normal way</b>. Find both and <b>click each one</b>. The next round starts as soon as you\u2019ve clicked both. There are '+SEARCH_TRIALS+' rounds and each can last up to 25 seconds. Use a large desktop display.</p><p class="hint">Can\u2019t find them? Press Space to skip a round. Esc stops the task.</p>',
-    [{label:'Start the search task',primary:true,fs:true,fn:runSearch},{label:'Not now',fn:()=>lastSummary?show('res'):finish()}]); }
+    '<p>You\u2019ll see two normal-facing Es among 16 reversed Es, each surrounded by eight # symbols. First complete 10 practice rounds (about 2–4 minutes). Then complete 50 study rounds (about 5–12 minutes at a typical pace). Look at the centre of each normal E and click it. When you correctly click one, its letter changes color so you can see it was selected.</p><p class="hint">Each round allows up to 25 seconds, so the total can be longer. Press Space to skip; Esc stops the task. Practice records are kept separately from the study score.</p>', 
+    [{label:'Start 10 practice rounds',primary:true,fs:true,fn:runPractice},{label:'Not now',fn:()=>lastSummary?show('res'):finish()}]); }
 $('#toSearch').onclick=showSearchIntro;
 // Deliberately no repeat button: repeated search runs would bias within-session outcomes.
 $('#dlSearch').onclick=()=>{ saveSearch()||toast('There\u2019s no search data yet.'); };
