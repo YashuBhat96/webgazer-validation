@@ -215,7 +215,7 @@
 
 <div id="app">
 
-  <!-- The participant questions and screen measurement come first. No participant ID is shown here. -->
+  <!-- The participant questions and screen measurement come first. An assigned participant ID is required. -->
 <!-- 1 · SETUP (three short panels) -->
   <section class="stage on" id="s-setup">
     <div class="sheet"><div class="card">
@@ -229,12 +229,12 @@
           <b>Privacy notice</b>
           <p style="margin:7px 0">Webcam images are used temporarily in your browser to estimate where you are looking. <b>We do not save or upload webcam photos, video, or face images.</b> The study collects predicted gaze positions, timestamps, calibration and validation measurements, target positions, clicks and response times, browser and device information, and any questionnaire answers you provide.</p>
           <p style="margin:7px 0">Results are held only in this open browser tab during the task, not saved in persistent browser storage. They are sent over HTTPS to the study server only when you choose <b>Submit Study Data</b>. If you refresh or close the tab before submitting, those unsent results will be lost. The research team can view and export those records in a password protected dashboard. You may stop participating at any time. If you do not submit, do not press the final submission button.</p>
-          <p style="margin:7px 0">Typing your name and checking the box below acknowledges that you read this information and agree to participate and submit the study data. This short notice is intended for an IRB approved study; it does not replace any longer consent materials required by the study protocol.</p>
+          <p style="margin:7px 0">Entering your assigned participant ID and checking the box below confirms that you have read this information and agree to participate and submit the study data. This short notice is intended for an IRB approved study; it does not replace any longer consent materials required by the study protocol.</p>
         </div>
         <p class="okbox" id="needTape"><b>You’ll need:</b> a bank or ID card (to measure your screen) <span id="needTapeWhat">and a tape measure or ruler</span> (to measure how far you sit from the camera). At the end, press the large Submit Study Data button to send your records to the research server. If this is a local pilot, download a backup instead.</p>
-        <div class="field"><label for="participantName">Type your name to confirm consent</label>
-          <input id="participantName" class="wide" type="text" maxlength="100" placeholder="Your name" autocomplete="off" spellcheck="false" required>
-          <div class="hint" style="margin-top:6px">Your name and consent acknowledgment are included in the study submission. A random session ID is used for gaze files.</div></div>
+        <div class="field"><label for="participantId">Participant ID (assigned by the study team)</label>
+          <input id="participantId" class="wide" type="text" maxlength="40" placeholder="Enter your assigned participant ID" autocomplete="off" autocapitalize="off" spellcheck="false" pattern="[A-Za-z0-9_-]{3,40}" title="Use 3–40 letters, numbers, hyphens or underscores" required>
+          <div class="hint" style="margin-top:6px">Your participant ID and agreement acknowledgment are included in the study submission. Do not enter your name, email address, phone number or another personal identifier. A random technical session ID is also assigned automatically.</div></div>
         <div class="field"><label class="opt" for="consentAgree"><input type="checkbox" id="consentAgree" required><span>I have read the privacy and study information above and agree to participate and submit the data described.</span></label></div>
         <div class="field"><label id="lblExperience">Have you used an eye tracker before?</label>
           <div class="seg" role="radiogroup" aria-labelledby="lblExperience">
@@ -243,7 +243,7 @@
           </div>
           <p class="hint" style="margin-top:7px">This refers to previous experience with any eye tracking device. It is different from calibrating WebGazer during this session.</p>
         </div>
-        <p class="hint">No invitation or participant ID is required. Your session is assigned a private random identifier automatically.</p>
+        <p class="hint">Enter the participant ID provided by the study team. A separate random technical session ID is assigned automatically.</p>
         <div class="errbox" id="inviteErr"></div>
 
         <div class="row tight" style="margin-top:18px">
@@ -694,7 +694,7 @@ const GRADE = { accDeg:[3,6], precDeg:[3,6], accPx:[110,220], precPx:[110,220] }
 const DIST_MIN = 50, DIST_MAX = 70;   // cm, webcam to eye: participants must sit in this range (checked on the tape measurement)
 const PASS_MIN_VALID = 75;            // observed callback validity, distinct from time coverage            // % of frames with a gaze estimate needed to pass the check
 // Independent validation uses 25 distinct positions (12 Brand-style + 13 extended) repeated in two randomized blocks (50 total).
-const CONSENT_VERSION = 'webgazer-consent-2026-10-20-v1';
+const CONSENT_VERSION = 'webgazer-consent-participant-id-2026-10-28-v1';
 const CAM_W = 400;
 const QUALITY=GazeQuality.CFG;
 // This is the existing saved build label. It is metadata, not the current ZIP name.
@@ -756,7 +756,7 @@ let latest=null, liveDot=false, collecting=false, curSamples=[], curNulls=[], ab
 let sx=null, sy=null;                          // gaze used for the check and on-screen results (raw or smoothed, per the setting)
 let ssx=null, ssy=null;                        // smoothed stream, always computed (SMOOTH_ALPHA), so both are recorded
 let emaAlpha=SMOOTHING?SMOOTH_ALPHA:1, kalmanOn=USE_KALMAN, soundOn=true, dispX=null, dispY=null;
-let sessionLog=[], recording=false, phase='setup', t0=0, sessionUnixStart=Date.now(), pid='anon', participantName='', experience='', consentRecord=null, studyVisit='pilot', unsaved=false;
+let sessionLog=[], recording=false, phase='setup', t0=0, sessionUnixStart=Date.now(), pid='anon', participantId='', experience='', consentRecord=null, studyVisit='pilot', unsaved=false;
 let pxPerCm=null, distCm=null, distSource='camera estimate', anchorEstCm=null;
 let paused=false, pauseCount=0, calibrated=false, calRuns=0, checkRuns=[], passed=false, valKind='main', calViewport=null, viewportChanged=false;
 let calibrationAttemptCount=0, calibrationCompleted=false, calibrationHistory=[], calibrationPointsCollected=0, calibrationFailureReason=null, validationCompleted=false, pauseStartedAt=null;
@@ -814,9 +814,9 @@ function setPanel(id){ document.querySelectorAll('#s-setup .panel').forEach(p=>p
   stages.setup.querySelector('.sheet').scrollTop=0; const h=$('#'+id+' h1'); if(h){h.setAttribute('tabindex','-1');h.focus({preventScroll:true});} }
 document.querySelectorAll('[data-panel]').forEach(b=>b.onclick=()=>setPanel(b.dataset.panel));
 $('#toDemo').onclick=async()=>{
-  participantName=$('#participantName').value.trim();
-  if(!participantName || !$('#consentAgree').checked){
-    $('#inviteErr').textContent='Please type your name and check the consent box before continuing.';
+  participantId=$('#participantId').value.trim();
+  if(!/^[A-Za-z0-9_-]{3,40}$/.test(participantId) || !$('#consentAgree').checked){
+    $('#inviteErr').textContent='Please enter your assigned participant ID (3–40 letters, numbers, hyphens or underscores) and check the agreement box before continuing.';
     $('#inviteErr').classList.add('on'); return;
   }
   experience=radioVal('eyeTrackerExperience');
@@ -824,7 +824,7 @@ $('#toDemo').onclick=async()=>{
   try {
     const current=await StudyUpload.start(); // New anonymous session on each fresh visit. No browser-persistent study storage.
     pid=current.session_id; studyVisit=current.visit||'pilot';
-    consentRecord={version:CONSENT_VERSION,agreed:true,typed_name:participantName,acknowledged_at:new Date().toISOString(),notice:'participant_webcam_and_gaze_data_notice'};
+    consentRecord={version:CONSENT_VERSION,agreed:true,participant_id:participantId,acknowledged_at:new Date().toISOString(),notice:'participant_webcam_and_gaze_data_notice'};
     // Consent is batch zero, held in memory until final submission.
     await StudyUpload.enqueue('consent',consentRecord,STUDY_BUILD);
     $('#inviteErr').classList.remove('on');setPanel('p-demo');
@@ -1070,7 +1070,7 @@ async function startTracker(){
   runDistance();
 }
 function readSetup(){
-  participantName=$('#participantName').value.trim(); experience=radioVal('eyeTrackerExperience');
+  participantId=$('#participantId').value.trim(); experience=radioVal('eyeTrackerExperience');
   const cardPx=parseFloat($('#cardRange').value), cardCm=parseFloat(String($('#cardCm').value).replace(',','.'));
   pxPerCm=(cardPx>0&&cardCm>0)?cardPx/cardCm:null;
   emaAlpha=$('#optSmooth').checked?SMOOTH_ALPHA:1; kalmanOn=USE_KALMAN; tapeWanted=$('#optTape').checked; readDevice(); readVision(); readDemo();
@@ -1772,7 +1772,7 @@ function saveSession(){
  if(!consentRecord && !sessionLog.length && !calibrationHistory.length && !validationAttempts.length)return false;
  const s=lastSummary;
  const pack={study_build:STUDY_BUILD,webgazer_version:'2.0.1',participant:pid,
-  generated_at:new Date().toISOString(),visit_type:studyVisit,eye_tracker_experience:experience,consent_name:participantName,session_outcome:s?.screenQuality||null,calibration_completed:calibrationCompleted,calibration_attempts:calibrationAttemptCount,calibration_points_collected:calibrationPointsCollected,calibration_failure_reason:calibrationFailureReason,calibration_history:calibrationHistory,validation_completed:validationCompleted,
+  generated_at:new Date().toISOString(),visit_type:studyVisit,eye_tracker_experience:experience,participant_id:participantId,session_outcome:s?.screenQuality||null,calibration_completed:calibrationCompleted,calibration_attempts:calibrationAttemptCount,calibration_points_collected:calibrationPointsCollected,calibration_failure_reason:calibrationFailureReason,calibration_history:calibrationHistory,validation_completed:validationCompleted,
   independent_validation_quality_passed:passed,consent:consentRecord,
   validation_usable_points:s?.results?.filter(r=>r.usable).length??0,
   measured_quality:{accuracy_mean_px:s?.accPx??null,accuracy_deg:s?.accDeg??null,precision_rms_px:s?.precPx??null,
@@ -1796,7 +1796,7 @@ function saveValidation(){ const s=lastSummary; if(!s)return false; const q=v=>`
     rows.push(`${r.i},${r.location_id||''},${r.validation_pass||''},${r.validation_group||''},${r.x},${r.y},${r.mgx==null?'':r.mgx.toFixed(1)},${r.mgy==null?'':r.mgy.toFixed(1)},${r.accPx==null?'':r.accPx.toFixed(1)},${ad==null?'':ad.toFixed(3)},${r.precPx==null?'':r.precPx.toFixed(1)},${pd==null?'':pd.toFixed(3)},${r.n},${pxdeg(r.accX)},${pxdeg(r.accY)},${pxdeg(r.precX)},${pxdeg(r.precY)},${pxdeg((s.resultsRaw[k]||{}).accPx)},${pxdeg((s.resultsRaw[k]||{}).precPx)},${pxdeg((s.resultsSm[k]||{}).accPx)},${pxdeg((s.resultsSm[k]||{}).precPx)}`);});
   const kv=(k,v)=>rows.push(`${k},${v==null?'':v}`);
   rows.push('');
-  kv('participant',s.pid);kv('visit_type',studyVisit);kv('eye_tracker_experience',experience);kv('optional_name',q(participantName));
+  kv('participant',s.pid);kv('visit_type',studyVisit);kv('eye_tracker_experience',experience);kv('participant_id',q(participantId));
   kv('overall_accuracy_px',s.accPx==null?'':s.accPx.toFixed(1)); kv('overall_accuracy_deg',s.accDeg==null?'':s.accDeg.toFixed(3));
   kv('overall_precision_px',s.precPx==null?'':s.precPx.toFixed(1)); kv('overall_precision_deg',s.precDeg==null?'':s.precDeg.toFixed(3));
   const A=s.ax||{}, kv2=(k,v,vd)=>{ kv(k+'_px',v==null?'':v.toFixed(1)); kv(k+'_deg',vd==null?'':vd.toFixed(3)); };
@@ -1859,7 +1859,7 @@ function saveAll(){
     // validation samples, and individual search-trial gaze arrays. No quality gate.
     if(consentRecord||sessionLog.length||calibrationHistory.length||validationAttempts.length||searchTrials.length||practiceTrials.length){
       const complete={study_build:STUDY_BUILD,generated_at:new Date().toISOString(),
-        participant:pid,visit:studyVisit,consent:consentRecord,consent_name:participantName,
+        participant:pid,visit:studyVisit,consent:consentRecord,participant_id:participantId,
         demographics:demo,device,vision,system:sysInfo,
         calibration_completed:calibrationCompleted,calibration_attempts:calibrationAttemptCount,
         calibration_failure_reason:calibrationFailureReason,calibration_history:calibrationHistory,
@@ -1959,7 +1959,7 @@ async function persistCheckpoint(kind){
     calibration_outcome:{completed:calibrationCompleted,attempts:calibrationAttemptCount,points_collected:calibrationPointsCollected,failure_reason:calibrationFailureReason,history:calibrationHistory.slice()},
     validation_completed:validationCompleted,validation_quality_passed:validationCompleted?passed:null,
     search_summary:['search_complete','finish','incomplete_finish'].includes(kind)?lastSearch:null,
-    participant_details:['finish','incomplete_finish'].includes(kind)?{consent_name:participantName,consent:consentRecord,demographics:demo,device,vision,system:sysInfo,
+    participant_details:['finish','incomplete_finish'].includes(kind)?{participant_id:participantId,consent:consentRecord,demographics:demo,device,vision,system:sysInfo,
       screen_px_per_cm:pxPerCm,distance_cm:distCm,distance_source:distSource,
       age:demo.age||null,eye_tracker_experience:experience,calibration_completed:calibrationCompleted,calibration_attempts:calibrationAttemptCount,
       calibration_history:calibrationHistory.slice(),validation_completed:validationCompleted,validation_quality_passed:validationCompleted?passed:null}:null,
