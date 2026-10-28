@@ -216,7 +216,7 @@
         <div class="okbox" style="margin:16px 0" role="note" aria-label="Study privacy notice">
           <b>Privacy notice</b>
           <p style="margin:7px 0">Webcam images are used temporarily in your browser to estimate where you are looking. <b>We do not save or upload webcam photos, video, or face images.</b> The study collects predicted gaze positions, timestamps, calibration and validation measurements, target positions, clicks and response times, browser and device information, and any questionnaire answers you provide.</p>
-          <p style="margin:7px 0">Results are saved temporarily in your browser during the task. They are sent over HTTPS to the study server only when you choose <b>Submit Study Data</b>. The research team can view and export those records in a password protected dashboard. You may stop participating at any time. If you do not submit, do not press the final submission button.</p>
+          <p style="margin:7px 0">Results are held only in this open browser tab during the task, not saved in persistent browser storage. They are sent over HTTPS to the study server only when you choose <b>Submit Study Data</b>. If you refresh or close the tab before submitting, those unsent results will be lost. The research team can view and export those records in a password protected dashboard. You may stop participating at any time. If you do not submit, do not press the final submission button.</p>
           <p style="margin:7px 0">Typing your name and checking the box below acknowledges that you read this information and agree to participate and submit the study data. This short notice is intended for an IRB approved study; it does not replace any longer consent materials required by the study protocol.</p>
         </div>
         <p class="okbox" id="needTape"><b>You’ll need:</b> a bank or ID card (to measure your screen) <span id="needTapeWhat">and a tape measure or ruler</span> (to measure how far you sit from the camera). At the end, press the large Submit Study Data button to send your records to the research server. If this is a local pilot, download a backup instead.</p>
@@ -233,7 +233,6 @@
         </div>
         <p class="hint">No invitation or participant ID is required. Your session is assigned a private random identifier automatically.</p>
         <div class="errbox" id="inviteErr"></div>
-        <div id="resumeRow" hidden class="row"><button class="btn accent" id="resumeSubmission" type="button">SUBMIT PREVIOUSLY SAVED DATA</button></div>
 
         <div class="row tight" style="margin-top:18px">
           <span class="status" aria-live="polite"><span class="dot-ind wait" id="modelDot"></span><span id="modelMsg">Loading the eye tracker…</span></span>
@@ -357,7 +356,6 @@
           <button class="nudge" id="cardPlus" aria-label="Make the bar wider">+</button>
         </div>
         <p class="readout" id="cardReadout" aria-live="polite"></p>
-        <p class="hint" id="cardRemembered" style="display:none;margin-top:10px">We kept the width from your last session on this computer. Check it still matches your card.</p>
         <details class="more"><summary>Not using a standard bank card?</summary>
           <div class="field" style="margin-top:6px"><label for="cardCm">Width of your card (cm)</label>
             <input id="cardCm" type="text" value="8.56" inputmode="decimal"></div>
@@ -572,13 +570,13 @@
     <div class="sheet"><div class="card">
       <p class="eyebrow">Finished</p>
       <h1>Ready to submit your study data</h1>
-      <p>The camera is off. Your results are saved as local checkpoints while you decide whether to submit.</p>
+      <p>The camera is off. Your results remain temporarily in this open tab until you submit. They are not stored in browser cache or persistent local storage.</p>
       <button class="btn submit-primary" id="submitStudyData" type="button">SUBMIT STUDY DATA</button>
-      <p class="submission-note">Press the button above to send your session data to the research server. The button shows confirmation only after the server verifies receipt. Submitting is not automatic.</p>
+      <p class="submission-note">Press the button above to send your session data to the research server. The button shows confirmation only after the server verifies receipt. Submitting is not automatic. Do not refresh or close this tab until you see confirmation or download a backup.</p>
       <p class="submit-result" id="doneSaved" role="status" aria-live="polite"></p>
       <div class="row"><button class="btn ghost" id="retryUpload" hidden>Try submitting again</button><button class="btn ghost" id="doneDl">Download a backup</button></div>
       <div class="sendbox"></div>
-      <p class="hint" style="margin-top:16px">Do not close this tab until you see a confirmed receipt or have saved the local backup. Calibration attempts, errors, and incomplete sessions are retained with their status.</p>
+      <p class="hint" style="margin-top:16px">Do not close or refresh this tab until you see a confirmed receipt or have saved a backup. Unsubmitted measurements are kept in memory only; closing this tab loses them. Calibration attempts, errors, and incomplete sessions are included in the submission.</p>
     </div></div>
   </section>
 
@@ -646,7 +644,7 @@ loadScript('./webgazer-2.0.1.js',function(){console.warn('[GazeCheck] local webg
 <script src="./quality.js"></script>
 <script src="./gaze_kinematics.js"></script>
 <script src="./deploy-config.js"></script>
-<script src="./upload.js"></script>
+<script src="./upload.js?v=20261027-memory-only"></script>
 <script>
 (function(){
 "use strict";
@@ -676,7 +674,7 @@ const CONSENT_VERSION = 'webgazer-consent-2026-10-20-v1';
 const CAM_W = 400;
 const QUALITY=GazeQuality.CFG;
 // This is the existing saved build label. It is metadata, not the current ZIP name.
-const STUDY_BUILD='webgazer-validation-2.7-calibration-failure-retention';
+const STUDY_BUILD='webgazer-validation-2.9-single-zip-backup';
 let activeTaskId='', activeTargetX=null, activeTargetY=null, activeAttempt=0, validationAttempts=[], runInterrupted=false;             // camera preview width (px)
 
 /* ============================================================
@@ -734,7 +732,7 @@ let latest=null, liveDot=false, collecting=false, curSamples=[], curNulls=[], ab
 let sx=null, sy=null;                          // gaze used for the check and on-screen results (raw or smoothed, per the setting)
 let ssx=null, ssy=null;                        // smoothed stream, always computed (SMOOTH_ALPHA), so both are recorded
 let emaAlpha=SMOOTHING?SMOOTH_ALPHA:1, kalmanOn=USE_KALMAN, soundOn=true, dispX=null, dispY=null;
-let sessionLog=[], recording=false, phase='setup', t0=0, sessionUnixStart=Date.now(), pid='anon', participantName='', experience='', consentRecord=null, studyVisit='pilot', unsaved=false, recoveryMode=false, pendingHadFinish=false;
+let sessionLog=[], recording=false, phase='setup', t0=0, sessionUnixStart=Date.now(), pid='anon', participantName='', experience='', consentRecord=null, studyVisit='pilot', unsaved=false;
 let pxPerCm=null, distCm=null, distSource='camera estimate', anchorEstCm=null;
 let paused=false, pauseCount=0, calibrated=false, calRuns=0, checkRuns=[], passed=false, valKind='main', calViewport=null, viewportChanged=false;
 let calibrationAttemptCount=0, calibrationCompleted=false, calibrationHistory=[], calibrationPointsCollected=0, calibrationFailureReason=null, validationCompleted=false, pauseStartedAt=null;
@@ -800,34 +798,16 @@ $('#toDemo').onclick=async()=>{
   experience=radioVal('eyeTrackerExperience');
   if(!experience){$('#inviteErr').textContent='Please select Yes or No for previous eye tracker experience.';$('#inviteErr').classList.add('on');return;}
   try {
-    const current=await StudyUpload.start(); // Creates an anonymous capability, not a gaze-data upload; checkpoints remain local.
+    const current=await StudyUpload.start(); // New anonymous session on each fresh visit. No browser-persistent study storage.
     pid=current.session_id; studyVisit=current.visit||'pilot';
     consentRecord={version:CONSENT_VERSION,agreed:true,typed_name:participantName,acknowledged_at:new Date().toISOString(),notice:'participant_webcam_and_gaze_data_notice'};
-    if(current.needsResume){
-      pendingHadFinish=current.hasFinish;$('#resumeRow').hidden=false;
-      $('#inviteErr').textContent='This browser has a previously saved, unsubmitted session. Submit those records before starting another session. An interrupted session will be marked incomplete.';
-      $('#inviteErr').classList.add('on');return;
-    }
-    // Consent is batch zero, stored locally until the final submit button is used.
+    // Consent is batch zero, held in memory until final submission.
     await StudyUpload.enqueue('consent',consentRecord,STUDY_BUILD);
-    $('#resumeRow').hidden=true;$('#inviteErr').classList.remove('on');setPanel('p-demo');
+    $('#inviteErr').classList.remove('on');setPanel('p-demo');
   } catch(e){
     $('#inviteErr').textContent=e.message;
     $('#inviteErr').classList.add('on');
   }
-};
-$('#resumeSubmission').onclick=async()=>{
- try{
-  recoveryMode=true;
-  if(!pendingHadFinish)await StudyUpload.enqueue('incomplete_finish',{
-   recovery_reason:'session_interrupted_before_finish',recovered_at:new Date().toISOString(),
-   eye_tracker_experience:experience,participant_details:{consent_name:participantName}},STUDY_BUILD);
-  show('done');$('#submitStudyData').disabled=false;
-  $('#doneSaved').textContent=pendingHadFinish?
-   'Previously completed local data recovered. Press the large button to send them to the research server.':
-   'An incomplete session was recovered. Press the large button to submit it, clearly marked as INCOMPLETE.';
-  renderSend();
- }catch(e){$('#inviteErr').textContent='Recovery failed: '+e.message;$('#inviteErr').classList.add('on');}
 };
 $('#toDevice').onclick=()=>{ const a=$('#demoAge').value.trim();
   if(a&&!$('#demoAgePnts').checked&&!(Number.isInteger(+a)&&+a>=1&&+a<=120)){
@@ -849,7 +829,7 @@ document.querySelectorAll('#demoRace input').forEach(c=>c.addEventListener('chan
   if(e.target.value==='prefer not to say'&&e.target.checked) all.forEach(i=>{ if(i!==e.target) i.checked=false; });
   else if(e.target.checked) all.find(i=>i.value==='prefer not to say').checked=false;
   $('#demoRaceOther').hidden=!all.find(i=>i.value==='another').checked; }));
-$('#toVision').onclick=()=>{ readDevice(); try{localStorage.setItem('gazecheck.device',JSON.stringify(device));}catch(e){} setPanel('p-vision'); };
+$('#toVision').onclick=()=>{ readDevice(); setPanel('p-vision'); };
 $('#toScreen').onclick=()=>{ readVision();
   const missing=!vision.usual||(!$('#visQWithout').hidden&&!vision.clearWithout)||(!$('#visQNow').hidden&&!vision.now)||!vision.clearNow;
   if(VISION_REQUIRED&&missing){ const e=$('#visErr'); e.innerHTML='<b>Please answer all the questions above.</b>'; e.classList.add('on'); return; }
@@ -857,7 +837,7 @@ $('#toScreen').onclick=()=>{ readVision();
 $('#optTape').checked=ASK_TAPE; $('#needTape').hidden=!ASK_TAPE; $('#tapeSkip').hidden=!TAPE_SKIP_ALLOWED;
 $('#needTapeWhat').textContent=TAPE_SKIP_ALLOWED?'and, if you have one, a tape measure or ruler':'and a tape measure or ruler'; $('#optSmooth').checked=SMOOTHING;
 
-// computer and camera questions (remembered on this computer, like the screen size)
+// computer and camera questions (not persisted between visits)
 const radioVal=n=>{ const r=document.querySelector(`input[name="${n}"]:checked`); return r?r.value:''; };
 const setRadio=(n,v)=>{ const r=document.querySelector(`input[name="${n}"][value="${v}"]`); if(r) r.checked=true; };
 function readDevice(){ device={type:radioVal('devType'), model:$('#devModel').value.trim(), camType:radioVal('camType'),
@@ -881,8 +861,6 @@ function syncVision(){
 document.querySelectorAll('#p-vision input[type=radio]').forEach(r=>r.addEventListener('change',syncVision));
 function syncWebcamField(){ $('#webcamField').hidden=radioVal('camType')!=='separate'; }
 document.querySelectorAll('input[name="camType"]').forEach(r=>r.addEventListener('change',syncWebcamField));
-try{ const d=JSON.parse(localStorage.getItem('gazecheck.device')||'null');
-  if(d){ setRadio('devType',d.type); $('#devModel').value=d.model||''; setRadio('camType',d.camType); $('#webcamModel').value=d.webcam||''; } }catch(e){}
 syncWebcamField();
 (function(){
   const ua=navigator.userAgent, H={
@@ -912,12 +890,11 @@ syncWebcamField();
     if(gl){ const x=gl.getExtension('WEBGL_debug_renderer_info'); sysInfo.gpu=String(gl.getParameter(x?x.UNMASKED_RENDERER_WEBGL:gl.RENDERER)||'');
       const l=gl.getExtension('WEBGL_lose_context'); if(l) l.loseContext(); } }catch(e){}
 })();
-$('#toPrep').onclick=()=>{ try{localStorage.setItem('gazecheck.cardPx',$('#cardRange').value);}catch(e){} setPanel('p-prep'); };
+$('#toPrep').onclick=()=>{ setPanel('p-prep'); };
 
 // card ruler
 (function(){
   const box=$('#cardBox'), rng=$('#cardRange'), cm=$('#cardCm'), out=$('#cardReadout');
-  try{ const v=localStorage.getItem('gazecheck.cardPx'); if(v&&+v>=+rng.min&&+v<=+rng.max){ rng.value=v; $('#cardRemembered').style.display='block'; } }catch(e){}
   function u(){ box.style.width=rng.value+'px';
     const c=parseFloat(String(cm.value).replace(',','.'))||8.56, ppc=rng.value/c;
     const w=screen.width/ppc, h=screen.height/ppc, d=Math.hypot(w,h)/2.54;
@@ -1579,7 +1556,7 @@ async function finish(){
   if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
   show('done');
   $('#submitStudyData').disabled=true;
-  $('#doneSaved').textContent='Saving the final local checkpoint…';
+  $('#doneSaved').textContent='Preparing your results in this tab…';
   try{
     const completedTask=calibrationCompleted && validationCompleted && !!lastSummary && !!lastSearch && searchTrials.length===SEARCH_TRIALS;
     if(StudyUpload.configured){
@@ -1587,10 +1564,10 @@ async function finish(){
       await queueCheckpoint(completedTask?'finish':'incomplete_finish');
     }
     $('#doneSaved').textContent=StudyUpload.configured?(completedTask?'Your complete session is ready to submit. Nothing has been sent to the research server yet.':'This session is marked INCOMPLETE because calibration, validation, or search was unfinished. Collected gaze and failure records are preserved. Nothing has been sent yet.'):
-      'Local pilot mode: no research server is configured. Use Download a backup to save the data.';
+      'Local pilot mode: no research server is configured. Use Download a backup to save the data before closing the tab.';
     $('#submitStudyData').disabled=!StudyUpload.configured;
   }catch(e){
-    $('#doneSaved').textContent='Local storage failed: '+e.message+'. Download a backup now. Do not close the page.';
+    $('#doneSaved').textContent='Could not prepare submission: '+e.message+'. Download a backup now. Do not close the page.';
   }
   renderSend();
 }
@@ -1601,7 +1578,7 @@ async function submitStudyData(){
   btn.disabled=true; $('#retryUpload').hidden=true;
   btn.textContent='SUBMITTING…'; $('#doneSaved').textContent='Sending saved checkpoints and requesting a verified server receipt…';
   try{
-    await checkpointLock; // final checkpoint is committed to IndexedDB before any request
+    await checkpointLock; // wait for all in-memory checkpoint batches before the first upload
     if(!StudyUpload.status.ready)throw new Error('Study session not ready. Open your original study link and try again.');
     const ack=await StudyUpload.complete();
     if(ack && ack.status==='acknowledged'){
@@ -1624,8 +1601,74 @@ async function submitStudyData(){
    CSV
    ============================================================ */
 const downloaded=[];
-function download(name,text,mime='text/csv'){ if(!downloaded.includes(name)) downloaded.push(name); renderSend();
-  const b=new Blob([text],{type:mime}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);}
+let archiveCollector=null;
+// Individual CSV controls download one file; Download all produces ONE ZIP. Browsers can
+// silently block the previous sequence of 6–9 automatic downloads.
+function startBrowserDownload(name,blob){
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url;a.download=name;a.style.display='none';document.body.appendChild(a);
+  a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+function download(name,text,mime='text/csv'){
+  if(archiveCollector){archiveCollector.push({name,text,mime});return;}
+  startBrowserDownload(name,new Blob([text],{type:mime+';charset=utf-8'}));
+  if(!downloaded.includes(name))downloaded.push(name);
+  renderSend();
+}
+// Create a standards-compliant, uncompressed ZIP locally without an external library,
+// any server call, or storing study records in the browser cache. UTF-8 filenames supported.
+const ZIP_ENCODER=new TextEncoder();
+const ZIP_CRC_TABLE=(()=>{
+  const a=new Uint32Array(256);
+  for(let i=0;i<256;i++){
+    let c=i;
+    for(let j=0;j<8;j++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);
+    a[i]=c>>>0;
+  }
+  return a;
+})();
+function zipCRC32(bytes){
+  let c=0xFFFFFFFF;
+  for(let i=0;i<bytes.length;i++)c=ZIP_CRC_TABLE[(c^bytes[i])&255]^(c>>>8);
+  return (c^0xFFFFFFFF)>>>0;
+}
+function zipBackup(files){
+  if(files.length>65535)throw new Error('Too many files for ZIP export');
+  const parts=[], central=[];
+  let offset=0, centralSize=0;
+  const date=new Date(), year=Math.max(1980,date.getFullYear());
+  const dosDate=((Math.min(2107,year)-1980)<<9)|((date.getMonth()+1)<<5)|date.getDate();
+  const dosTime=(date.getHours()<<11)|(date.getMinutes()<<5)|(date.getSeconds()>>>1);
+  for(const file of files){
+    const name=ZIP_ENCODER.encode(file.name), data=ZIP_ENCODER.encode(file.text);
+    if(name.length>65535||data.length>0xFFFFFFFF)throw new Error('One backup file exceeds ZIP limits');
+    const crc=zipCRC32(data), size=data.length;
+    const local=new Uint8Array(30+name.length), lh=new DataView(local.buffer);
+    lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);
+    lh.setUint16(6,0x0800,true); // UTF-8 filename
+    lh.setUint16(8,0,true); // STORE (no compression)
+    lh.setUint16(10,dosTime,true);lh.setUint16(12,dosDate,true);
+    lh.setUint32(14,crc,true);lh.setUint32(18,size,true);lh.setUint32(22,size,true);
+    lh.setUint16(26,name.length,true);lh.setUint16(28,0,true);
+    local.set(name,30);
+    const entry=new Uint8Array(46+name.length), ch=new DataView(entry.buffer);
+    ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);
+    ch.setUint16(8,0x0800,true);ch.setUint16(10,0,true);
+    ch.setUint16(12,dosTime,true);ch.setUint16(14,dosDate,true);
+    ch.setUint32(16,crc,true);ch.setUint32(20,size,true);ch.setUint32(24,size,true);
+    ch.setUint16(28,name.length,true);ch.setUint16(30,0,true);ch.setUint16(32,0,true);
+    ch.setUint16(34,0,true);ch.setUint16(36,0,true);ch.setUint32(38,0,true);
+    ch.setUint32(42,offset,true);entry.set(name,46);
+    central.push(entry);parts.push(local,data);
+    offset+=local.length+size;centralSize+=entry.length;
+    if(offset+centralSize>0xFFFFFFFF)throw new Error('Study data too large for this ZIP format');
+  }
+  const end=new Uint8Array(22), e=new DataView(end.buffer);
+  e.setUint32(0,0x06054b50,true);e.setUint16(4,0,true);e.setUint16(6,0,true);
+  e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);
+  e.setUint32(12,centralSize,true);e.setUint32(16,offset,true);e.setUint16(20,0,true);
+  return new Blob([...parts,...central,end],{type:'application/zip'});
+}
 function stamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());}
 const csvCell=v=>v==null?'':`"${String(v).replace(/"/g,'""')}"`;
 const asCSV=(headers,records)=>[headers.join(','),...records.map(r=>headers.map(k=>csvCell(r[k])).join(','))].join('\n');
@@ -1671,7 +1714,7 @@ function saveAttempts(){
 }
 // This local export is a backup if the participant cannot submit online.
 function saveSession(){
- if(!sessionLog.length && !calibrationHistory.length && !validationAttempts.length)return false;
+ if(!consentRecord && !sessionLog.length && !calibrationHistory.length && !validationAttempts.length)return false;
  const s=lastSummary;
  const pack={study_build:STUDY_BUILD,webgazer_version:'2.0.1',participant:pid,
   generated_at:new Date().toISOString(),visit_type:studyVisit,eye_tracker_experience:experience,consent_name:participantName,session_outcome:s?.screenQuality||null,calibration_completed:calibrationCompleted,calibration_attempts:calibrationAttemptCount,calibration_points_collected:calibrationPointsCollected,calibration_failure_reason:calibrationFailureReason,calibration_history:calibrationHistory,validation_completed:validationCompleted,
@@ -1742,23 +1785,53 @@ function saveValidation(){ const s=lastSummary; if(!s)return false; const q=v=>`
   kv('user_agent',q(navigator.userAgent));
   kv('face_model_source',q(window.__modelSource)); kv('webgazer','2.0.1');
   download(`gaze_validation_${pid}_${stamp()}.csv`,rows.join('\n')); return true; }
-async function saveAll(){
-  if(recoveryMode && StudyUpload.configured){
-    const entries=await StudyUpload.pending();
-    if(entries.length){download(`saved_recovery_${pid}_${stamp()}.json`,JSON.stringify(entries,null,2),'application/json');
-      toast('Saved a recovery backup. This contains sensitive study records.');return;}
-    toast('No locally pending batches remain; retry confirmation using the submit button.');return;
+function saveAll(){
+  // Do not await between the participant's click and the final download. This
+  // avoids losing browser user activation and triggering multi-download blocking.
+  if(archiveCollector){toast('A backup is already being prepared.');return;}
+  const files=[], errors=[];
+  archiveCollector=files;
+  try{
+    const jobs=[saveValidation,saveQuality,saveAttempts,saveRaw,saveKinematics,saveSession];
+    if(lastSearch)jobs.push(saveSearch,saveSearchTrials);
+    for(const job of jobs){
+      try{job();}catch(error){errors.push(job.name+': '+error.message);console.error('[GazeCheck] backup export',job.name,error);}
+    }
+    // Full-resolution records including unsuccessful calibration, missing values,
+    // validation samples, and individual search-trial gaze arrays. No quality gate.
+    if(consentRecord||sessionLog.length||calibrationHistory.length||validationAttempts.length||searchTrials.length){
+      const complete={study_build:STUDY_BUILD,generated_at:new Date().toISOString(),
+        participant:pid,visit:studyVisit,consent:consentRecord,consent_name:participantName,
+        demographics:demo,device,vision,system:sysInfo,
+        calibration_completed:calibrationCompleted,calibration_attempts:calibrationAttemptCount,
+        calibration_failure_reason:calibrationFailureReason,calibration_history:calibrationHistory,
+        validation_completed:validationCompleted,validation_quality_passed:validationCompleted?passed:null,
+        gaze_events:sessionLog,validation_attempts:validationAttempts,
+        camera_checks:checkRuns,validation_summary:lastSummary,
+        search_trials:searchTrials,search_summary:lastSearch};
+      download(`gaze_full_record_${pid}_${stamp()}.json`,JSON.stringify(complete,null,2),'application/json');
+    }
+    if(errors.length)download('export_warnings.txt',errors.join('\n'),'text/plain');
+  }catch(error){
+    console.error('[GazeCheck] preparing backup',error);errors.push(error.message);
+  }finally{archiveCollector=null;}
+  if(!files.length){toast('There is no session data to download yet.');return;}
+  try{
+    const zip=zipBackup(files);
+    const name=`gaze_study_backup_${pid}_${stamp()}.zip`;
+    startBrowserDownload(name,zip);
+    downloaded.push(name);unsaved=false;renderSend();
+    toast(`ZIP download started (${files.length} study files). Check your Downloads folder.`);
+  }catch(error){
+    console.error('[GazeCheck] ZIP export',error);
+    toast('Could not create the ZIP: '+error.message+'. Please try the individual CSV buttons.');
   }
-  const jobs=[saveValidation,saveQuality,saveAttempts,saveRaw,saveKinematics,saveSession]; if(lastSearch)jobs.push(saveSearch,saveSearchTrials);
-  let n=0; for(const j of jobs){ if(j()) n++; await sleep(350); }
-  if(n){ unsaved=false; toast(n>1?`Downloading ${n} files. If your browser asks, allow multiple downloads.`:'Downloading 1 file.'); }
-  else toast('There\u2019s no data to download yet.');
 }
 function renderSend(){
  const st=StudyUpload.status;
  const info=!StudyUpload.configured?'<b>Local pilot mode.</b> No research server has been configured; use Download a backup.':
    (st.receipt?'<b>Submission confirmed.</b> Research server received the saved study records.':
-     '<b>Not yet submitted.</b> '+st.pending+' locally saved checkpoint batch(es). Data will be uploaded only after you press SUBMIT STUDY DATA.'+
+     '<b>Not yet submitted.</b> '+st.pending+' checkpoint batch(es) kept only in this open tab. Data will be uploaded only after you press SUBMIT STUDY DATA.'+
      (st.error?' Last server error: '+esc(st.error):''));
  document.querySelectorAll('.sendbox').forEach(el=>{el.innerHTML=info;});
 }
@@ -1766,7 +1839,7 @@ addEventListener('study-upload-status',renderSend);
 $('#retryUpload').onclick=submitStudyData;
 $('#submitStudyData').onclick=submitStudyData;
 let logUploadCursor=0,attemptUploadCursor=0,checkUploadCursor=0,searchUploadCursor=0;
-// Save movement calculations locally before the final submission.
+// Prepare movement calculations in this tab's memory before final submission.
 async function queueKinematics(){
  if(!StudyUpload.configured)return;
  const k=computeKinematics();
@@ -1787,7 +1860,7 @@ function queueCheckpoint(kind){
  checkpointLock=checkpointLock.catch(()=>{}).then(()=>persistCheckpoint(kind));
  return checkpointLock;
 }
-// Keep checkpoints in the browser queue so an interrupted visit may be recoverable.
+// Keep checkpoints in this tab's memory only (never persistent browser storage).
 async function persistCheckpoint(kind){
  if(!StudyUpload.configured||!StudyUpload.status.ready)return false;
  const untilLog=sessionLog.length,untilAttempts=validationAttempts.length,untilChecks=checkRuns.length,untilTrials=searchTrials.length;
@@ -1805,12 +1878,12 @@ async function persistCheckpoint(kind){
       age:demo.age||null,eye_tracker_experience:experience,calibration_completed:calibrationCompleted,calibration_attempts:calibrationAttemptCount,
       calibration_history:calibrationHistory.slice(),validation_completed:validationCompleted,validation_quality_passed:validationCompleted?passed:null}:null,
     viewport:{w:innerWidth,h:innerHeight},recording_active:recording};
- // Serial upload queue persistence is coordinated in upload.js. Advance cursors only after IndexedDB stores the batch.
+ // Advance cursors only after upload.js places the batch into its in-memory queue.
  await StudyUpload.enqueue(kind,batch,STUDY_BUILD);
  logUploadCursor=untilLog;attemptUploadCursor=untilAttempts;checkUploadCursor=untilChecks;searchUploadCursor=untilTrials;
  return true;
 }
-// Periodic checkpoint protects partial sessions if the tab closes abruptly.
+// Periodic in-memory snapshots avoid huge single batches; closing the tab still loses unsent data.
 setInterval(()=>{
   if(StudyUpload.configured && recording && sessionLog.length>logUploadCursor)
     queueCheckpoint('periodic_gaze').catch(()=>{});
