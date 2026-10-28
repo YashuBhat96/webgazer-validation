@@ -36,6 +36,11 @@
   .btn.submit-primary:focus-visible{outline:4px solid #E0A22E;outline-offset:4px}
   .btn.submit-primary:disabled{background:#A6BDAE;border-color:#99B6A2;color:#163923;box-shadow:none}
   .submission-note{max-width:70ch;font-size:15px;color:#365D49}
+  .upload-progress{margin:20px 0;padding:19px;border:2px solid #C4DAD0;border-radius:14px;background:#F2F8F4}
+  .upload-progress strong{display:block;font-size:19px;margin-bottom:6px;color:#244F3B}
+  .upload-progress progress{display:block;width:100%;height:24px;accent-color:#176C42;margin:14px 0 10px}
+  .upload-progress .upload-warning{font-size:16px;font-weight:750;color:#7D2B1D;margin:10px 0 0}
+  .upload-progress .upload-detail{font-size:14px;color:#365D49;margin:4px 0 0}
   .submit-result{font-size:16px;font-weight:650;min-height:26px}
   .linkbtn{background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;text-underline-offset:3px;font-size:14px}
   .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:26px}
@@ -586,6 +591,12 @@
       <p>The camera is off. Your results remain temporarily in this open tab until you submit. They are not stored in browser cache or persistent local storage.</p>
       <button class="btn submit-primary" id="submitStudyData" type="button">SUBMIT STUDY DATA</button>
       <p class="submission-note">Press the button above to send your session data to the research server. The button shows confirmation only after the server verifies receipt. Submitting is not automatic. Do not refresh or close this tab until you see confirmation or download a backup.</p>
+      <div class="upload-progress" id="uploadProgress" role="region" aria-label="Study submission progress" hidden>
+        <strong id="uploadHeadline">Preparing submission…</strong>
+        <progress id="uploadMeter" max="100" value="0" aria-label="Confirmed submission progress"></progress>
+        <p class="upload-detail" id="uploadDetail" role="status" aria-live="polite">Waiting for the server…</p>
+        <p class="upload-warning" id="uploadWarning">DO NOT CLOSE OR REFRESH THIS TAB until submission is confirmed.</p>
+      </div>
       <p class="submit-result" id="doneSaved" role="status" aria-live="polite"></p>
       <div class="row"><button class="btn ghost" id="retryUpload" hidden>Try submitting again</button><button class="btn ghost" id="doneDl">Download a backup</button></div>
       <div class="sendbox"></div>
@@ -657,7 +668,7 @@ loadScript('./webgazer-2.0.1.js',function(){console.warn('[GazeCheck] local webg
 <script src="./quality.js"></script>
 <script src="./gaze_kinematics.js"></script>
 <script src="./deploy-config.js"></script>
-<script src="./upload.js?v=20261027-fresh-consent-32"></script>
+<script src="./upload.js?v=20261028-parallel-progress-33"></script>
 <script>
 (function(){
 "use strict";
@@ -687,7 +698,7 @@ const CONSENT_VERSION = 'webgazer-consent-2026-10-20-v1';
 const CAM_W = 400;
 const QUALITY=GazeQuality.CFG;
 // This is the existing saved build label. It is metadata, not the current ZIP name.
-const STUDY_BUILD='webgazer-validation-3.2-nonoverlapping-search-fresh-consent';
+const STUDY_BUILD='webgazer-validation-3.3-progress-upload';
 let activeTaskId='', activeTargetX=null, activeTargetY=null, activeAttempt=0, validationAttempts=[], runInterrupted=false;             // camera preview width (px)
 
 /* ============================================================
@@ -1607,23 +1618,27 @@ async function submitStudyData(){
   const btn=$('#submitStudyData');
   if(!StudyUpload.configured){$('#doneSaved').textContent='No research server is configured. Download a backup.';return;}
   btn.disabled=true; $('#retryUpload').hidden=true;
-  btn.textContent='SUBMITTING…'; $('#doneSaved').textContent='Sending saved checkpoints and requesting a verified server receipt…';
+  $('#doneDl').disabled=true;
+  $('#uploadProgress').hidden=false;
+  $('#uploadHeadline').textContent='Connecting securely to the study server…';
+  $('#uploadMeter').value=0;
+  btn.textContent='SUBMITTING…'; $('#doneSaved').textContent='Please keep this tab open. Data are not fully submitted until we display a confirmation receipt.';
   try{
     await checkpointLock; // wait for all in-memory checkpoint batches before the first upload
     if(!StudyUpload.status.ready)throw new Error('Study session not ready. Open your original study link and try again.');
     const ack=await StudyUpload.complete();
     if(ack && ack.status==='acknowledged'){
-      unsaved=false;btn.textContent='DATA SUBMITTED ✓';
+      unsaved=false;btn.textContent='DATA SUBMITTED ✓';$('#doneDl').disabled=false;
       $('#doneSaved').textContent=ack.partial?
         'Partial session received and identified as INCOMPLETE by the research server. You may close this tab.':
         'Submission confirmed. Your study data were received by the research server. You may close this tab.';
     }else{
       $('#doneSaved').textContent='Not confirmed. Please check your internet connection, then retry or download a backup.';
-      btn.textContent='SUBMIT STUDY DATA'; btn.disabled=false;$('#retryUpload').hidden=false;
+      btn.textContent='SUBMIT STUDY DATA'; btn.disabled=false;$('#retryUpload').hidden=false;$('#doneDl').disabled=false;$('#doneDl').disabled=false;
     }
   }catch(e){
     $('#doneSaved').textContent='Submission failed: '+e.message+'. Retry, or download a backup.';
-    btn.textContent='SUBMIT STUDY DATA'; btn.disabled=false;$('#retryUpload').hidden=false;
+    btn.textContent='SUBMIT STUDY DATA'; btn.disabled=false;$('#retryUpload').hidden=false;$('#doneDl').disabled=false;
   }
   renderSend();
 }
@@ -1865,11 +1880,38 @@ function renderSend(){
  const st=StudyUpload.status;
  const info=!StudyUpload.configured?'<b>Local pilot mode.</b> No research server has been configured; use Download a backup.':
    (st.receipt?'<b>Submission confirmed.</b> Research server received the saved study records.':
-     '<b>Not yet submitted.</b> '+st.pending+' checkpoint batch(es) kept only in this open tab. Data will be uploaded only after you press SUBMIT STUDY DATA.'+
+     (st.submitting?'<b>Uploading study data.</b> '+st.sent+' of '+st.total+' checkpoint batches confirmed by the server. Keep this tab open.':
+      '<b>Not yet submitted.</b> '+st.pending+' checkpoint batch(es) kept only in this open tab. Data will be uploaded only after you press SUBMIT STUDY DATA.')+
      (st.error?' Last server error: '+esc(st.error):''));
  document.querySelectorAll('.sendbox').forEach(el=>{el.innerHTML=info;});
+ const box=$('#uploadProgress');
+ if(!box)return;
+ if(!st.submitting && !st.receipt && st.stage==='idle')return;
+ box.hidden=false;
+ const total=st.total||0;
+ const confirmed=st.sent||0;
+ const pct=st.receipt?100:(total?Math.min(98,Math.round(confirmed/total*96)):0);
+ const meter=$('#uploadMeter');meter.value=pct;
+ const heading=$('#uploadHeadline');
+ const line=$('#uploadDetail');
+ const warning=$('#uploadWarning');
+ const stages={opening:'Creating your secure upload',consent:'Saving consent acknowledgment',
+  uploading:'Uploading study data',final_checkpoint:'Saving final study checkpoint',
+  verifying:'Verifying the complete study',complete:'Submission successful',error:'Upload interrupted'};
+ heading.textContent=stages[st.stage]||'Preparing your upload';
+ const elapsed=st.startedAt?Math.floor((Date.now()-st.startedAt)/1000):0;
+ const elapsedText=elapsed>=60?Math.floor(elapsed/60)+'m '+String(elapsed%60).padStart(2,'0')+'s':elapsed+'s';
+ line.textContent=st.receipt?'100% complete. The research server confirmed receipt.':
+  (confirmed+' of '+total+' batches confirmed ('+pct+'%). Elapsed: '+elapsedText+'. '+
+  (st.retrying?'Connection interrupted; retrying securely…':st.stage==='verifying'?'Checking every batch arrived…':
+    st.stage==='error'?'Please try again or download a backup.':'Transfer in progress…'));
+ warning.hidden=st.receipt;
+ warning.textContent=st.stage==='error'?'Do not close this tab. Retry the upload or download a backup.':
+  'DO NOT CLOSE OR REFRESH THIS TAB until submission is confirmed.';
 }
 addEventListener('study-upload-status',renderSend);
+// Show elapsed time even when the network has not yet acknowledged another batch.
+setInterval(()=>{if(StudyUpload.status.submitting)renderSend();},1000);
 $('#retryUpload').onclick=submitStudyData;
 $('#submitStudyData').onclick=submitStudyData;
 let logUploadCursor=0,attemptUploadCursor=0,checkUploadCursor=0,searchUploadCursor=0;
@@ -1922,9 +1964,9 @@ async function persistCheckpoint(kind){
 setInterval(()=>{
   if(StudyUpload.configured && recording && sessionLog.length>logUploadCursor)
     queueCheckpoint('periodic_gaze').catch(()=>{});
-},15000);
+},45000);
 renderSend();
-addEventListener('beforeunload',e=>{ if(unsaved){ e.preventDefault(); e.returnValue=''; } });
+addEventListener('beforeunload',e=>{ if(StudyUpload.status.submitting || (unsaved && !StudyUpload.status.receipt)){ e.preventDefault(); e.returnValue=''; } });
 
 /* ============================================================
    WIRING
